@@ -59,40 +59,22 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer b.Conn.Drain()
+	defer b.Conn.Drain() // nolint: errcheck // just a basic example
 	s := &dhcp.Server{
 		Log:               stdr.New(log.New(os.Stdout, "", 0)),
 		Listener:          netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 225), 67),
 		IPAddr:            netaddr.IPv4(192, 168, 2, 225),
 		IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 225), 69),
-		//IPXEBinServerHTTP: &url.URL{},
+		// IPXEBinServerHTTP: &url.URL{},
 		IPXEScriptURL:  &url.URL{Scheme: "http", Host: "boot.netboot.xyz"},
 		NetbootEnabled: true,
-		Backend:        b, // &thing{},
+		Backend:        b,
 	}
-	s.ListenAndServe(ctx)
+	log.Println(s.ListenAndServe(ctx))
 }
 
-type thing struct{}
-
-func (a *thing) Read(context.Context, net.HardwareAddr) (*data.DHCP, *data.Netboot, error) {
-	d := &data.DHCP{
-		IPAddress:      netaddr.IPv4(192, 168, 2, 200),
-		SubnetMask:     []byte{255, 255, 255, 0},
-		DefaultGateway: netaddr.IPv4(192, 168, 2, 1),
-		NameServers: []net.IP{
-			{1, 1, 1, 1},
-		},
-		LeaseTime: 86400,
-	}
-	n := &data.Netboot{
-		AllowNetboot: true,
-	}
-	return d, n, nil
-}
-
-func setupNats(url string) (*nats.Conn, error) {
-	nc, err := natsio.Connect(url)
+func setupNats(u string) (*nats.Conn, error) {
+	nc, err := natsio.Connect(u)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +94,7 @@ func responder(ctx context.Context, sub string) {
 	}
 	defer nc.Close()
 	// Replies
-	nc.Subscribe(sub, func(m *natsio.Msg) {
+	subsc, err := nc.Subscribe(sub, func(m *natsio.Msg) {
 		e := cloudevents.NewEvent()
 		err := e.UnmarshalJSON(m.Data)
 		if err != nil {
@@ -143,22 +125,28 @@ func responder(ctx context.Context, sub string) {
 			BroadcastAddress: netaddr.IPv4(192, 168, 2, 255),
 			LeaseTime:        86400,
 		}
-		/*b, err := json.Marshal(resp)
-		if err != nil {
-			fmt.Println("error with json.Marshall()", err)
-			return
-		}*/
 		ceResp := cloudevents.NewEvent()
 		ceResp.SetID(uuid.New().String())
 		ceResp.SetSource("/tinkerbell/dhcp")
 		ceResp.SetType("org.tinkerbell.backend.read")
-		ceResp.SetData(cloudevents.ApplicationJSON, resp)
+		err = ceResp.SetData(cloudevents.ApplicationJSON, resp)
+		if err != nil {
+			log.Fatal(err)
+		}
 		b, err := ceResp.MarshalJSON()
 		if err != nil {
 			fmt.Printf("failed to json marshal cloudevent: %v\n", err)
 			return
 		}
-		nc.Publish(m.Reply, b)
+		err = nc.Publish(m.Reply, b)
+		if err != nil {
+			log.Println(err)
+		}
 	})
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer subsc.Drain() // nolint: errcheck // just a basic example
 	<-ctx.Done()
 }

@@ -1,3 +1,4 @@
+// Package nats implements a backend for communicating via a Nats server.
 package nats
 
 import (
@@ -13,22 +14,28 @@ import (
 	"github.com/tinkerbell/dhcp/data"
 )
 
+// Conn holds details about communicating with a Nats server.
 type Conn struct {
 	Subject string
 	Timeout time.Duration
 	Conn    *nats.Conn
 }
 
+// DHCPRequest is the data passed to listening backends.
 type DHCPRequest struct {
 	Mac net.HardwareAddr `json:"MacAddress"`
 }
 
+// Read implements the interface for getting data via a nats messaging request/reply pattern.
 func (c *Conn) Read(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *data.Netboot, error) {
 	event := cloudevents.NewEvent()
 	event.SetID(uuid.New().String())
 	event.SetSource("/tinkerbell/dhcp")
 	event.SetType("org.tinkerbell.backend.read")
-	event.SetData(cloudevents.ApplicationJSON, &DHCPRequest{Mac: mac})
+	err := event.SetData(cloudevents.ApplicationJSON, &DHCPRequest{Mac: mac})
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to set cloudevents data")
+	}
 	b, err := event.MarshalJSON()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to marshal cloudevent into json: %w", err)

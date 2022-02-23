@@ -93,6 +93,7 @@ func (n *Netboot) EncodeToAttributes() []attribute.KeyValue {
 	}
 }
 
+// MarshalJSON is the custom marshaller for the DHCP struct.
 func (d *DHCP) MarshalJSON() ([]byte, error) {
 	dhcp := struct {
 		IPAddress        string   `json:"IpAddress"`
@@ -125,101 +126,102 @@ func (d *DHCP) MarshalJSON() ([]byte, error) {
 	return json.Marshal(dhcp)
 }
 
+// UnmarshalJSON is the custom unmarshaller for the DHCP struct.
 func (d *DHCP) UnmarshalJSON(j []byte) error {
 	var rawStrings map[string]interface{}
-
 	err := json.Unmarshal(j, &rawStrings)
 	if err != nil {
 		return err
 	}
 
 	for k, v := range rawStrings {
-		if v != nil {
-			switch strings.ToLower(k) {
-			case "macaddress":
-				uv := fmt.Sprintf("%v", v)
-				m, err := net.ParseMAC(uv)
-				if err != nil {
-					return fmt.Errorf("%v: %w", err, errUnmarshal)
-				}
-				d.MacAddress = m
-			case "ipaddress":
-				uv, ok := v.(string)
-				if !ok {
-					return fmt.Errorf("unable to type assert ipaddress: %w", errUnmarshal)
-				}
-				if d.IPAddress, err = netaddr.ParseIP(uv); err != nil {
-					return err
-				}
-			case "subnetmask":
-				uv, ok := v.(string)
-				if !ok {
-					return fmt.Errorf("unable to type assert subnetmask: %w", errUnmarshal)
-				}
-				if d.SubnetMask = net.IPMask(net.ParseIP(uv).To4()); d.SubnetMask == nil {
-					return fmt.Errorf("failed to parse subnetmask: %v: %w", v, errUnmarshal)
-				}
-			case "defaultgateway":
-				uv, ok := v.(string)
-				if !ok {
-					return fmt.Errorf("unable to type assert defaultgateway: %w", errUnmarshal)
-				}
-				if d.DefaultGateway, err = netaddr.ParseIP(uv); err != nil {
-					return err
-				}
-			case "nameservers":
-				for _, elem := range v.([]interface{}) {
-					uv, ok := elem.(string)
-					if !ok {
-						return fmt.Errorf("unable to type assert nameserver: %w", errUnmarshal)
-					}
-					d.NameServers = append(d.NameServers, net.ParseIP(uv))
-				}
-			case "hostname":
-				uv, ok := v.(string)
-				if !ok {
-					return fmt.Errorf("unable to type assert hostname: %w", errUnmarshal)
-				}
-				d.Hostname = uv
-			case "domainname":
-				uv, ok := v.(string)
-				if !ok {
-					return fmt.Errorf("unable to type assert domainname: %w", errUnmarshal)
-				}
-				d.DomainName = uv
-			case "broadcastaddress":
-				uv, ok := v.(string)
-				if !ok {
-					return fmt.Errorf("unable to type assert broadcastaddress: %w", errUnmarshal)
-				}
-				if d.BroadcastAddress, err = netaddr.ParseIP(uv); err != nil {
-					return err
-				}
-			case "ntpservers":
-				for _, elem := range v.([]interface{}) {
-					uv, ok := elem.(string)
-					if !ok {
-						return fmt.Errorf("unable to type assert ntpservers: %w", errUnmarshal)
-					}
-					d.NTPServers = append(d.NTPServers, net.ParseIP(uv))
-				}
-			case "leasetime":
-				uv, ok := v.(float64)
-				if !ok {
-					return fmt.Errorf("unable to type assert leasetime: %w", errUnmarshal)
-				}
-				d.LeaseTime = uint32(uv)
-			case "domainsearch":
-				for _, elem := range v.([]interface{}) {
-					uv, ok := elem.(string)
-					if !ok {
-						return fmt.Errorf("unable to type assert domainsearch: %w", errUnmarshal)
-					}
-					d.DomainSearch = append(d.DomainSearch, uv)
-				}
-			default:
-				return fmt.Errorf("unknown key: %v: %w", k, errUnmarshal)
+		if v == nil {
+			continue
+		}
+		switch strings.ToLower(k) {
+		case "macaddress":
+			uv := fmt.Sprintf("%v", v)
+			m, err := net.ParseMAC(uv)
+			if err != nil {
+				return fmt.Errorf("%v: %w", err, errUnmarshal)
 			}
+			d.MacAddress = m
+		case "ipaddress":
+			uv, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("unable to type assert ipaddress: %w", errUnmarshal)
+			}
+			if d.IPAddress, err = netaddr.ParseIP(uv); err != nil {
+				return err
+			}
+		case "subnetmask":
+			uv, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("unable to type assert subnetmask: %w", errUnmarshal)
+			}
+			if d.SubnetMask = net.IPMask(net.ParseIP(uv).To4()); d.SubnetMask == nil {
+				return fmt.Errorf("failed to parse subnetmask: %v: %w", v, errUnmarshal)
+			}
+		case "defaultgateway":
+			uv, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("unable to type assert defaultgateway: %w", errUnmarshal)
+			}
+			if d.DefaultGateway, err = netaddr.ParseIP(uv); err != nil {
+				return err
+			}
+		case "nameservers":
+			for _, elem := range v.([]interface{}) {
+				uv, ok := elem.(string)
+				if !ok {
+					return fmt.Errorf("unable to type assert nameserver: %w", errUnmarshal)
+				}
+				d.NameServers = append(d.NameServers, net.ParseIP(uv))
+			}
+		case "hostname":
+			uv, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("unable to type assert hostname: %w", errUnmarshal)
+			}
+			d.Hostname = uv
+		case "domainname":
+			uv, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("unable to type assert domainname: %w", errUnmarshal)
+			}
+			d.DomainName = uv
+		case "broadcastaddress":
+			uv, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("unable to type assert broadcastaddress: %w", errUnmarshal)
+			}
+			if d.BroadcastAddress, err = netaddr.ParseIP(uv); err != nil {
+				return err
+			}
+		case "ntpservers":
+			for _, elem := range v.([]interface{}) {
+				uv, ok := elem.(string)
+				if !ok {
+					return fmt.Errorf("unable to type assert ntpservers: %w", errUnmarshal)
+				}
+				d.NTPServers = append(d.NTPServers, net.ParseIP(uv))
+			}
+		case "leasetime":
+			uv, ok := v.(float64)
+			if !ok {
+				return fmt.Errorf("unable to type assert leasetime: %w", errUnmarshal)
+			}
+			d.LeaseTime = uint32(uv)
+		case "domainsearch":
+			for _, elem := range v.([]interface{}) {
+				uv, ok := elem.(string)
+				if !ok {
+					return fmt.Errorf("unable to type assert domainsearch: %w", errUnmarshal)
+				}
+				d.DomainSearch = append(d.DomainSearch, uv)
+			}
+		default:
+			return fmt.Errorf("unknown key: %v: %w", k, errUnmarshal)
 		}
 	}
 
