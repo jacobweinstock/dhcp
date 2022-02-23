@@ -98,6 +98,7 @@ func (s *Server) setDHCPOpts(_ context.Context, _ *dhcpv4.DHCPv4, d *data.DHCP) 
 	if d.Hostname != "" {
 		mods = append(mods, dhcpv4.WithGeneric(dhcpv4.OptionHostName, []byte(d.Hostname)))
 	}
+
 	if len(d.SubnetMask) > 0 {
 		mods = append(mods, dhcpv4.WithNetmask(d.SubnetMask))
 	}
