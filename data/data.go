@@ -96,6 +96,7 @@ func (n *Netboot) EncodeToAttributes() []attribute.KeyValue {
 // MarshalJSON is the custom marshaller for the DHCP struct.
 func (d *DHCP) MarshalJSON() ([]byte, error) {
 	dhcp := struct {
+		MacAddress       string   `json:"MacAddress"`
 		IPAddress        string   `json:"IpAddress"`
 		SubnetMask       string   `json:"SubnetMask"`
 		DefaultGateway   string   `json:"DefaultGateway"`
@@ -107,6 +108,7 @@ func (d *DHCP) MarshalJSON() ([]byte, error) {
 		LeaseTime        uint32   `json:"LeaseTime"`
 		DomainSearch     []string `json:"DomainSearch"`
 	}{
+		MacAddress:       d.MacAddress.String(),
 		IPAddress:        d.IPAddress.String(),
 		SubnetMask:       net.IP(d.SubnetMask).String(),
 		DefaultGateway:   d.DefaultGateway.String(),
@@ -127,39 +129,47 @@ func (d *DHCP) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON is the custom unmarshaller for the DHCP struct.
-func (d *DHCP) UnmarshalJSON(j []byte) error {
+func (d *DHCP) UnmarshalJSON(j []byte) error { // nolint: cyclop // TODO(jacobweinstock): Can I refactor this?
 	var rawStrings map[string]interface{}
 	err := json.Unmarshal(j, &rawStrings)
 	if err != nil {
-		return err
+		return fmt.Errorf("%v: %w", err, errUnmarshal)
 	}
 
 	for k, v := range rawStrings {
 		if v == nil {
 			continue
 		}
+		if uv, ok := v.(string); ok && uv == "" {
+			continue
+		}
 		switch strings.ToLower(k) {
 		case "macaddress":
-			uv := fmt.Sprintf("%v", v)
-			m, err := net.ParseMAC(uv)
-			if err != nil {
+			uv, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("unable to type assert macaddress: %w", errUnmarshal)
+			}
+			if d.MacAddress, err = net.ParseMAC(uv); err != nil {
 				return fmt.Errorf("%v: %w", err, errUnmarshal)
 			}
-			d.MacAddress = m
 		case "ipaddress":
 			uv, ok := v.(string)
 			if !ok {
 				return fmt.Errorf("unable to type assert ipaddress: %w", errUnmarshal)
 			}
 			if d.IPAddress, err = netaddr.ParseIP(uv); err != nil {
-				return err
+				return fmt.Errorf("failed to parse ipaddress: %v: %w", err, errUnmarshal)
 			}
 		case "subnetmask":
 			uv, ok := v.(string)
 			if !ok {
 				return fmt.Errorf("unable to type assert subnetmask: %w", errUnmarshal)
 			}
-			if d.SubnetMask = net.IPMask(net.ParseIP(uv).To4()); d.SubnetMask == nil {
+			ip := net.ParseIP(uv)
+			if ip == nil {
+				return fmt.Errorf("failed parse subnetmask: %w", errUnmarshal)
+			}
+			if d.SubnetMask = net.IPMask(ip.To4()); d.SubnetMask == nil {
 				return fmt.Errorf("failed to parse subnetmask: %v: %w", v, errUnmarshal)
 			}
 		case "defaultgateway":
@@ -168,13 +178,16 @@ func (d *DHCP) UnmarshalJSON(j []byte) error {
 				return fmt.Errorf("unable to type assert defaultgateway: %w", errUnmarshal)
 			}
 			if d.DefaultGateway, err = netaddr.ParseIP(uv); err != nil {
-				return err
+				return fmt.Errorf("failed to parse defaultgateway: %v: %w", v, errUnmarshal)
 			}
 		case "nameservers":
 			for _, elem := range v.([]interface{}) {
 				uv, ok := elem.(string)
 				if !ok {
 					return fmt.Errorf("unable to type assert nameserver: %w", errUnmarshal)
+				}
+				if uv == "" {
+					continue
 				}
 				d.NameServers = append(d.NameServers, net.ParseIP(uv))
 			}
@@ -196,13 +209,17 @@ func (d *DHCP) UnmarshalJSON(j []byte) error {
 				return fmt.Errorf("unable to type assert broadcastaddress: %w", errUnmarshal)
 			}
 			if d.BroadcastAddress, err = netaddr.ParseIP(uv); err != nil {
-				return err
+				return fmt.Errorf("failed to parse broadcastaddress: %v: %w", err, errUnmarshal)
 			}
 		case "ntpservers":
+
 			for _, elem := range v.([]interface{}) {
 				uv, ok := elem.(string)
 				if !ok {
 					return fmt.Errorf("unable to type assert ntpservers: %w", errUnmarshal)
+				}
+				if uv == "" {
+					continue
 				}
 				d.NTPServers = append(d.NTPServers, net.ParseIP(uv))
 			}
@@ -217,6 +234,9 @@ func (d *DHCP) UnmarshalJSON(j []byte) error {
 				uv, ok := elem.(string)
 				if !ok {
 					return fmt.Errorf("unable to type assert domainsearch: %w", errUnmarshal)
+				}
+				if uv == "" {
+					continue
 				}
 				d.DomainSearch = append(d.DomainSearch, uv)
 			}
