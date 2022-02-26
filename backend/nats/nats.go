@@ -9,6 +9,7 @@ import (
 	"time"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/equinix-labs/otel-init-go/otelhelpers"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/tinkerbell/dhcp/data"
@@ -23,7 +24,8 @@ type Conn struct {
 
 // DHCPRequest is the data passed to listening backends.
 type DHCPRequest struct {
-	Mac net.HardwareAddr `json:"MacAddress"`
+	Mac         net.HardwareAddr `json:"MacAddress"`
+	Traceparent string           `json:"Traceparent"`
 }
 
 // Read implements the interface for getting data via a nats messaging request/reply pattern.
@@ -32,7 +34,7 @@ func (c *Conn) Read(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *dat
 	event.SetID(uuid.New().String())
 	event.SetSource("/tinkerbell/dhcp")
 	event.SetType("org.tinkerbell.backend.read")
-	err := event.SetData(cloudevents.ApplicationJSON, &DHCPRequest{Mac: mac})
+	err := event.SetData(cloudevents.ApplicationJSON, &DHCPRequest{Mac: mac, Traceparent: otelhelpers.TraceparentStringFromContext(ctx)})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to set cloudevents data")
 	}
