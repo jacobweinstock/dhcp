@@ -13,7 +13,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/tinkerbell/dhcp/data"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 )
+
+const tracerName = "github.com/tinkerbell/dhcp"
 
 // Conn holds details about communicating with a Nats server.
 type Conn struct {
@@ -30,16 +34,24 @@ type DHCPRequest struct {
 
 // Read implements the interface for getting data via a nats messaging request/reply pattern.
 func (c *Conn) Read(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *data.Netboot, error) {
+	tracer := otel.Tracer(tracerName)
+	_, span := tracer.Start(ctx, "backend.file.Read")
+	defer span.End()
+
 	event := cloudevents.NewEvent()
 	event.SetID(uuid.New().String())
 	event.SetSource("/tinkerbell/dhcp")
 	event.SetType("org.tinkerbell.backend.read")
 	err := event.SetData(cloudevents.ApplicationJSON, &DHCPRequest{Mac: mac, Traceparent: otelhelpers.TraceparentStringFromContext(ctx)})
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+
 		return nil, nil, fmt.Errorf("failed to set cloudevents data")
 	}
 	b, err := event.MarshalJSON()
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+
 		return nil, nil, fmt.Errorf("failed to marshal cloudevent into json: %w", err)
 	}
 	ctx, cancel := context.WithTimeout(ctx, c.Timeout)
@@ -48,6 +60,8 @@ func (c *Conn) Read(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *dat
 	// do request/reply
 	ms, err := c.Conn.RequestWithContext(ctx, c.Subject, b)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+
 		return nil, nil, fmt.Errorf("failed to get reply: %w", err)
 	}
 
@@ -55,6 +69,8 @@ func (c *Conn) Read(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *dat
 	reply := cloudevents.NewEvent()
 	err = reply.UnmarshalJSON(ms.Data)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+
 		return nil, nil, fmt.Errorf("failed to unmarshal cloudevent: %w", err)
 	}
 
@@ -62,8 +78,14 @@ func (c *Conn) Read(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *dat
 	d := &data.DHCP{}
 	err = json.Unmarshal(reply.Data(), d)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+
 		return nil, nil, fmt.Errorf("failed to unmarshal received cloudevent.data into msg: %w", err)
 	}
+	n := &data.Netboot{AllowNetboot: true}
+	span.SetAttributes(d.EncodeToAttributes()...)
+	span.SetAttributes(n.EncodeToAttributes()...)
+	span.SetStatus(codes.Ok, "")
 
-	return d, &data.Netboot{AllowNetboot: true}, nil
+	return d, n, nil
 }

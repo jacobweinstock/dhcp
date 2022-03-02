@@ -96,7 +96,7 @@ func (n *Netboot) EncodeToAttributes() []attribute.KeyValue {
 // MarshalJSON is the custom marshaller for the DHCP struct.
 func (d *DHCP) MarshalJSON() ([]byte, error) {
 	dhcp := struct {
-		MacAddress       string   `json:"MacAddress"`
+		MACAddress       string   `json:"MacAddress"`
 		IPAddress        string   `json:"IpAddress"`
 		SubnetMask       string   `json:"SubnetMask"`
 		DefaultGateway   string   `json:"DefaultGateway"`
@@ -108,7 +108,7 @@ func (d *DHCP) MarshalJSON() ([]byte, error) {
 		LeaseTime        uint32   `json:"LeaseTime"`
 		DomainSearch     []string `json:"DomainSearch"`
 	}{
-		MacAddress:       d.MacAddress.String(),
+		MACAddress:       d.MACAddress.String(),
 		IPAddress:        d.IPAddress.String(),
 		SubnetMask:       net.IP(d.SubnetMask).String(),
 		DefaultGateway:   d.DefaultGateway.String(),
@@ -149,7 +149,7 @@ func (d *DHCP) UnmarshalJSON(j []byte) error { // nolint: cyclop // TODO(jacobwe
 			if !ok {
 				return fmt.Errorf("unable to type assert macaddress: %w", errUnmarshal)
 			}
-			if d.MacAddress, err = net.ParseMAC(uv); err != nil {
+			if d.MACAddress, err = net.ParseMAC(uv); err != nil {
 				return fmt.Errorf("%v: %w", err, errUnmarshal)
 			}
 		case "ipaddress":
@@ -246,4 +246,63 @@ func (d *DHCP) UnmarshalJSON(j []byte) error { // nolint: cyclop // TODO(jacobwe
 	}
 
 	return nil
+}
+
+// EncodeToAttributes returns a slice of opentelemetry attributes that can be used to set span.SetAttributes.
+func (d *DHCP) EncodeToAttributes() []attribute.KeyValue {
+	var ns []string
+	for _, e := range d.NameServers {
+		ns = append(ns, e.String())
+	}
+
+	var ntp []string
+	for _, e := range d.NTPServers {
+		ntp = append(ntp, e.String())
+	}
+
+	ip := d.IPAddress.String()
+	if d.IPAddress.IsZero() {
+		ip = ""
+	}
+
+	sm := net.IP(d.SubnetMask).String()
+	if d.SubnetMask == nil {
+		sm = ""
+	}
+
+	dfg := d.DefaultGateway.String()
+	if d.DefaultGateway.IsZero() {
+		dfg = ""
+	}
+
+	ba := d.BroadcastAddress.String()
+	if d.BroadcastAddress.IsZero() {
+		ba = ""
+	}
+
+	return []attribute.KeyValue{
+		attribute.String("DHCP.MACAddress", d.MACAddress.String()),
+		attribute.String("DHCP.IPAddress", ip),
+		attribute.String("DHCP.SubnetMask", sm),
+		attribute.String("DHCP.DefaultGateway", dfg),
+		attribute.String("DHCP.NameServers", strings.Join(ns, ",")),
+		attribute.String("DHCP.Hostname", d.Hostname),
+		attribute.String("DHCP.DomainName", d.DomainName),
+		attribute.String("DHCP.BroadcastAddress", ba),
+		attribute.String("DHCP.NTPServers", strings.Join(ntp, ",")),
+		attribute.Int64("DHCP.LeaseTime", int64(d.LeaseTime)),
+		attribute.String("DHCP.DomainSearch", strings.Join(d.DomainSearch, ",")),
+	}
+}
+
+// EncodeToAttributes returns a slice of opentelemetry attributes that can be used to set span.SetAttributes.
+func (n *Netboot) EncodeToAttributes() []attribute.KeyValue {
+	var s string
+	if n.IPXEScriptURL != nil {
+		s = n.IPXEScriptURL.String()
+	}
+	return []attribute.KeyValue{
+		attribute.Bool("Netboot.AllowNetboot", n.AllowNetboot),
+		attribute.String("Netboot.IPXEScriptURL", s),
+	}
 }

@@ -30,8 +30,10 @@ import (
 	"inet.af/netaddr"
 )
 
-const natsSubject = "tinkerbell.dhcp"
-const tracerName = "github.com/packethost/cacher"
+const (
+	natsSubject = "tinkerbell.dhcp"
+	tracerName  = "github.com/packethost/cacher"
+)
 
 func main() {
 	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGHUP, syscall.SIGTERM)
@@ -76,7 +78,7 @@ func main() {
 		Log:               stdr.New(log.New(os.Stdout, "", 0)),
 		Listener:          netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 225), 67),
 		IPAddr:            netaddr.IPv4(192, 168, 2, 225),
-		IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 225), 69),
+		IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 1, 34), 69),
 		// IPXEBinServerHTTP: &url.URL{},
 		IPXEScriptURL:  &url.URL{Scheme: "http", Host: "boot.netboot.xyz"},
 		NetbootEnabled: true,
@@ -108,7 +110,6 @@ func responder(ctx context.Context, sub string) {
 	defer nc.Close()
 	// Replies
 	subsc, err := nc.Subscribe(sub, func(m *natsio.Msg) {
-
 		/*
 			c := otelhelpers.ContextWithTraceparentString(ctx, "00-deadbeefcafedeadbeefcafedeadbeef-123456789abcdef0-01")
 			sp := span.SpanContext()
@@ -158,7 +159,7 @@ func responder(ctx context.Context, sub string) {
 
 		resp := &data.DHCP{
 			IPAddress:      netaddr.IPv4(192, 168, 2, 199),
-			SubnetMask:     net.IPMask(net.ParseIP("192.168.2.1").To4()),
+			SubnetMask:     net.IPMask(net.ParseIP("255.255.255.0").To4()),
 			DefaultGateway: netaddr.IPv4(192, 168, 2, 1),
 			NameServers: []net.IP{
 				net.ParseIP("1.1.1.1"),
