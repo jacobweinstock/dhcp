@@ -35,7 +35,7 @@ type DHCPRequest struct {
 // Read implements the interface for getting data via a nats messaging request/reply pattern.
 func (c *Conn) Read(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *data.Netboot, error) {
 	tracer := otel.Tracer(tracerName)
-	_, span := tracer.Start(ctx, "backend.file.Read")
+	_, span := tracer.Start(ctx, "backend.nats.Read")
 	defer span.End()
 
 	event := cloudevents.NewEvent()
