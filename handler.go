@@ -85,53 +85,6 @@ func (s *Server) handleFunc(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4
 	log.Info("sent DHCP response")
 	span.SetAttributes(s.encodeToAttributes(reply, "reply")...)
 	span.SetStatus(codes.Ok, "sent DHCP response")
-
-	d, _ := dhcpv4.FromBytes(reply)
-	fmt.Println(d.SummaryWithVendor(&dhcpv4.VIVCIdentifiers{}))
-}
-
-func encodePKTToAttributes(pkt []byte) []attribute.KeyValue {
-	d, err := dhcpv4.FromBytes(pkt)
-	if err != nil {
-		return nil
-	}
-
-	var ns []string
-	for _, e := range d.DNS() {
-		ns = append(ns, e.String())
-	}
-
-	var ntp []string
-	for _, e := range d.NTPServers() {
-		ntp = append(ntp, e.String())
-	}
-
-	var ds []string
-	if l := d.DomainSearch(); l != nil {
-		ds = append(ds, l.Labels...)
-	}
-
-	var routers []string
-	for _, e := range d.Router() {
-		routers = append(routers, e.String())
-	}
-
-	return []attribute.KeyValue{
-		attribute.String("DHCP.Header.yiaddr", d.YourIPAddr.String()),
-		attribute.String("DHCP.Header.siaddr", d.ServerIPAddr.String()),
-		attribute.String("DHCP.Header.chaddr", d.ClientHWAddr.String()),
-		attribute.String("DHCP.Header.file", d.BootFileName),
-		attribute.String("DHCP.Opt1.SubnetMask", net.IP(d.SubnetMask()).String()),
-		attribute.String("DHCP.Opt3.DefaultGateway", strings.Join(routers, ",")),
-		attribute.String("DHCP.Opt6.NameServers", strings.Join(ns, ",")),
-		attribute.String("DHCP.Opt12.Hostname", d.HostName()),
-		attribute.String("DHCP.Opt15.DomainName", d.DomainName()),
-		attribute.String("DHCP.Opt28.BroadcastAddress", d.BroadcastAddress().String()),
-		attribute.String("DHCP.Opt42.NTPServers", strings.Join(ntp, ",")),
-		attribute.Float64("DHCP.Opt51.LeaseTime", d.IPAddressLeaseTime(0).Seconds()),
-		attribute.String("DHCP.Opt53.MessageType", d.MessageType().String()),
-		attribute.String("DHCP.Opt119.DomainSearch", strings.Join(ds, ",")),
-	}
 }
 
 // readBackend encapsulates the backend read and opentelemetry handling.

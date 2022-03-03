@@ -276,7 +276,6 @@ func client(pc net.PacketConn) (*dhcpv4.DHCPv4, error) {
 
 	return msg, nil
 }
-*/
 
 func TestUpdateMsg(t *testing.T) {
 	type args struct {
@@ -418,7 +417,6 @@ func TestReadBackend(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestIsNetbootClient(t *testing.T) {
