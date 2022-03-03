@@ -110,15 +110,6 @@ func responder(ctx context.Context, sub string) {
 	defer nc.Close()
 	// Replies
 	subsc, err := nc.Subscribe(sub, func(m *natsio.Msg) {
-		/*
-			c := otelhelpers.ContextWithTraceparentString(ctx, "00-deadbeefcafedeadbeefcafedeadbeef-123456789abcdef0-01")
-			sp := span.SpanContext()
-			tID := sp.TraceID().String()
-			sID := sp.SpanID().String()
-			fID := sp.TraceFlags().String()
-			tp := fmt.Sprintf("00-%v-%v-%v", tID, sID, fID)
-		*/
-
 		e := cloudevents.NewEvent()
 		err := e.UnmarshalJSON(m.Data)
 		if err != nil {

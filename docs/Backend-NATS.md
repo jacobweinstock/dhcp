@@ -56,3 +56,6 @@ For example, we can position a sidecar as close to the data as possible.
 See the diagram below.
 
 ![arch-diagram](dhcp-backend-nats.png)
+
+## Running the Example
+
