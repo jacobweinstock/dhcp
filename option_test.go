@@ -3,16 +3,13 @@ package dhcp
 import (
 	"bytes"
 	"context"
-	"log"
 	"net"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/equinix-labs/otel-init-go/otelhelpers"
 	"github.com/go-logr/logr"
-	"github.com/go-logr/stdr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/insomniacslk/dhcp/dhcpv4"

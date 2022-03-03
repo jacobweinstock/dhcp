@@ -3,6 +3,7 @@ module github.com/tinkerbell/dhcp
 go 1.17
 
 require (
+	github.com/cloudevents/sdk-go/v2 v2.8.0
 	github.com/equinix-labs/otel-init-go v0.0.5
 	github.com/go-logr/logr v1.2.2
 	github.com/go-logr/stdr v1.2.2
@@ -14,7 +15,7 @@ require (
 	github.com/nats-io/nats.go v1.13.1-0.20220121202836-972a071d373d
 	go.opentelemetry.io/otel v1.4.0
 	go.opentelemetry.io/otel/trace v1.4.0
-	golang.org/x/net v0.0.0-20210805182204-aaa1db679c0d
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
 	inet.af/netaddr v0.0.0-20211027220019-c74959edd3b6
 )
 

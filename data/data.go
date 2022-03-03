@@ -12,6 +12,8 @@ import (
 	"inet.af/netaddr"
 )
 
+var errUnmarshal = fmt.Errorf("unable to unmarshal")
+
 // DHCP holds the headers and options available to be set in a DHCP server response.
 // This is the API between the DHCP server and a backend.
 type DHCP struct {
@@ -246,63 +248,4 @@ func (d *DHCP) UnmarshalJSON(j []byte) error { // nolint: cyclop // TODO(jacobwe
 	}
 
 	return nil
-}
-
-// EncodeToAttributes returns a slice of opentelemetry attributes that can be used to set span.SetAttributes.
-func (d *DHCP) EncodeToAttributes() []attribute.KeyValue {
-	var ns []string
-	for _, e := range d.NameServers {
-		ns = append(ns, e.String())
-	}
-
-	var ntp []string
-	for _, e := range d.NTPServers {
-		ntp = append(ntp, e.String())
-	}
-
-	ip := d.IPAddress.String()
-	if d.IPAddress.IsZero() {
-		ip = ""
-	}
-
-	sm := net.IP(d.SubnetMask).String()
-	if d.SubnetMask == nil {
-		sm = ""
-	}
-
-	dfg := d.DefaultGateway.String()
-	if d.DefaultGateway.IsZero() {
-		dfg = ""
-	}
-
-	ba := d.BroadcastAddress.String()
-	if d.BroadcastAddress.IsZero() {
-		ba = ""
-	}
-
-	return []attribute.KeyValue{
-		attribute.String("DHCP.MACAddress", d.MACAddress.String()),
-		attribute.String("DHCP.IPAddress", ip),
-		attribute.String("DHCP.SubnetMask", sm),
-		attribute.String("DHCP.DefaultGateway", dfg),
-		attribute.String("DHCP.NameServers", strings.Join(ns, ",")),
-		attribute.String("DHCP.Hostname", d.Hostname),
-		attribute.String("DHCP.DomainName", d.DomainName),
-		attribute.String("DHCP.BroadcastAddress", ba),
-		attribute.String("DHCP.NTPServers", strings.Join(ntp, ",")),
-		attribute.Int64("DHCP.LeaseTime", int64(d.LeaseTime)),
-		attribute.String("DHCP.DomainSearch", strings.Join(d.DomainSearch, ",")),
-	}
-}
-
-// EncodeToAttributes returns a slice of opentelemetry attributes that can be used to set span.SetAttributes.
-func (n *Netboot) EncodeToAttributes() []attribute.KeyValue {
-	var s string
-	if n.IPXEScriptURL != nil {
-		s = n.IPXEScriptURL.String()
-	}
-	return []attribute.KeyValue{
-		attribute.Bool("Netboot.AllowNetboot", n.AllowNetboot),
-		attribute.String("Netboot.IPXEScriptURL", s),
-	}
 }
