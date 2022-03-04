@@ -59,3 +59,14 @@ See the diagram below.
 
 ## Running the Example
 
+```bash
+# 1. start the nats server
+go run example/main.go -server
+
+# 2. start an example nats client that will respond to messages on the nats dhcp subject.
+go run example/main.go -responder
+
+# 3. start the dhcp server
+go run example/main.go
+
+```
