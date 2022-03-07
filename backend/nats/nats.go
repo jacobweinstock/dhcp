@@ -38,7 +38,7 @@ func (c *Conn) Read(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *dat
 	ctx, span := tracer.Start(ctx, "backend.nats.Read")
 	defer span.End()
 
-	b, err := createCloudevent(ctx, mac)
+	b, err := createCloudevent(ctx, uuid.New().String(), mac)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -79,15 +79,17 @@ func (c *Conn) Read(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *dat
 	return d, n, nil
 }
 
-func createCloudevent(ctx context.Context, mac net.HardwareAddr) ([]byte, error) {
+func createCloudevent(ctx context.Context, id string, mac net.HardwareAddr) ([]byte, error) {
 	event := cloudevents.NewEvent()
-	event.SetID(uuid.New().String())
+	event.SetID(id)
 	event.SetSource("/tinkerbell/dhcp")
 	event.SetType("org.tinkerbell.dhcp.backend.read")
+
 	err := event.SetData(cloudevents.ApplicationJSON, &DHCPRequest{Mac: mac, Traceparent: otelhelpers.TraceparentStringFromContext(ctx)})
 	if err != nil {
 		return nil, fmt.Errorf("failed to set cloudevents data")
 	}
+	cloudevents.WithEncodingStructured(ctx)
 	b, err := event.MarshalJSON()
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal cloudevent into json: %w", err)
