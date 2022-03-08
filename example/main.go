@@ -74,8 +74,9 @@ func main() {
 	defer b.Conn.Drain() // nolint: errcheck // just a basic example
 	ctx, otelShutdown := otelinit.InitOpenTelemetry(ctx, "github.com/tinkerbell/dhcp")
 	defer otelShutdown(ctx)
+	l := stdr.New(log.New(os.Stdout, "", log.Lshortfile))
 	s := &dhcp.Server{
-		Log:               stdr.New(log.New(os.Stdout, "", 0)),
+		Log:               l,
 		Listener:          netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 225), 67),
 		IPAddr:            netaddr.IPv4(192, 168, 2, 225),
 		IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 1, 34), 69),
@@ -85,7 +86,7 @@ func main() {
 		Backend:        b,
 		OTELEnabled:    true,
 	}
-	log.Println(s.ListenAndServe(ctx))
+	l.Error(s.ListenAndServe(ctx), "done")
 }
 
 func setupNats(u string) (*nats.Conn, error) {

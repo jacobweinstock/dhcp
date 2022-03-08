@@ -88,6 +88,7 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	// server4.NewServer() will isolate listening to the specific interface.
 	srv, err := server4.NewServer(getInterfaceByIP(s.Listener.IP().String()), conn, s.handleFunc)
 	if err != nil {
+		fmt.Println(getInterfaceByIP(s.Listener.IP().String()))
 		return err
 	}
 
