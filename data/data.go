@@ -38,75 +38,86 @@ type Netboot struct {
 
 // EncodeToAttributes returns a slice of opentelemetry attributes that can be used to set span.SetAttributes.
 func (d *DHCP) EncodeToAttributes() []attribute.KeyValue {
+	var result []attribute.KeyValue
 	var ns []string
 	for _, e := range d.NameServers {
 		ns = append(ns, e.String())
+	}
+	if len(ns) > 0 {
+		result = append(result, attribute.String("DHCP.NameServers", strings.Join(ns, ",")))
 	}
 
 	var ntp []string
 	for _, e := range d.NTPServers {
 		ntp = append(ntp, e.String())
 	}
+	if len(ntp) > 0 {
+		result = append(result, attribute.String("DHCP.NTPServers", strings.Join(ntp, ",")))
+	}
 
-	var ip string
 	if !d.IPAddress.IsZero() {
-		ip = d.IPAddress.String()
+		result = append(result, attribute.String("DHCP.IPAddress", d.IPAddress.String()))
 	}
 
-	var sm string
 	if d.SubnetMask != nil {
-		sm = net.IP(d.SubnetMask).String()
+		result = append(result, attribute.String("DHCP.SubnetMask", net.IP(d.SubnetMask).String()))
 	}
 
-	var dfg string
 	if !d.DefaultGateway.IsZero() {
-		dfg = d.DefaultGateway.String()
+		result = append(result, attribute.String("DHCP.DefaultGateway", d.DefaultGateway.String()))
 	}
 
-	var ba string
 	if !d.BroadcastAddress.IsZero() {
-		ba = d.BroadcastAddress.String()
+		result = append(result, attribute.String("DHCP.BroadcastAddress", d.BroadcastAddress.String()))
 	}
 
-	return []attribute.KeyValue{
-		attribute.String("DHCP.MACAddress", d.MACAddress.String()),
-		attribute.String("DHCP.IPAddress", ip),
-		attribute.String("DHCP.SubnetMask", sm),
-		attribute.String("DHCP.DefaultGateway", dfg),
-		attribute.String("DHCP.NameServers", strings.Join(ns, ",")),
-		attribute.String("DHCP.Hostname", d.Hostname),
-		attribute.String("DHCP.DomainName", d.DomainName),
-		attribute.String("DHCP.BroadcastAddress", ba),
-		attribute.String("DHCP.NTPServers", strings.Join(ntp, ",")),
-		attribute.Int64("DHCP.LeaseTime", int64(d.LeaseTime)),
-		attribute.String("DHCP.DomainSearch", strings.Join(d.DomainSearch, ",")),
+	if d.MACAddress != nil {
+		result = append(result, attribute.String("DHCP.MACAddress", d.MACAddress.String()))
 	}
+
+	if d.Hostname != "" {
+		result = append(result, attribute.String("DHCP.Hostname", d.Hostname))
+	}
+
+	if d.DomainName != "" {
+		result = append(result, attribute.String("DHCP.DomainName", d.DomainName))
+	}
+
+	if d.LeaseTime != 0 {
+		result = append(result, attribute.Int64("DHCP.LeaseTime", int64(d.LeaseTime)))
+	}
+
+	if len(d.DomainSearch) > 0 {
+		result = append(result, attribute.String("DHCP.DomainSearch", strings.Join(d.DomainSearch, ",")))
+	}
+
+	return result
 }
 
 // EncodeToAttributes returns a slice of opentelemetry attributes that can be used to set span.SetAttributes.
 func (n *Netboot) EncodeToAttributes() []attribute.KeyValue {
-	var s string
-	if n.IPXEScriptURL != nil {
-		s = n.IPXEScriptURL.String()
-	}
-	return []attribute.KeyValue{
+	result := []attribute.KeyValue{
 		attribute.Bool("Netboot.AllowNetboot", n.AllowNetboot),
-		attribute.String("Netboot.IPXEScriptURL", s),
 	}
+	if n.IPXEScriptURL != nil {
+		result = append(result, attribute.String("Netboot.IPXEScriptURL", n.IPXEScriptURL.String()))
+	}
+
+	return result
 }
 
 // MarshalJSON is the custom marshaller for the DHCP struct.
 func (d *DHCP) MarshalJSON() ([]byte, error) {
 	dhcp := struct {
-		MACAddress       string   `json:"MacAddress"`
-		IPAddress        string   `json:"IpAddress"`
+		MACAddress       string   `json:"MACAddress"`
+		IPAddress        string   `json:"IPAddress"`
 		SubnetMask       string   `json:"SubnetMask"`
 		DefaultGateway   string   `json:"DefaultGateway"`
 		NameServers      []string `json:"NameServers"`
 		Hostname         string   `json:"Hostname"`
 		DomainName       string   `json:"DomainName"`
 		BroadcastAddress string   `json:"BroadcastAddress"`
-		NTPServers       []string `json:"NtpServers"`
+		NTPServers       []string `json:"NTPServers"`
 		LeaseTime        uint32   `json:"LeaseTime"`
 		DomainSearch     []string `json:"DomainSearch"`
 	}{
@@ -120,6 +131,19 @@ func (d *DHCP) MarshalJSON() ([]byte, error) {
 		LeaseTime:        d.LeaseTime,
 		DomainSearch:     d.DomainSearch,
 	}
+	if d.IPAddress.IsZero() {
+		dhcp.IPAddress = ""
+	}
+	if d.SubnetMask == nil {
+		dhcp.SubnetMask = ""
+	}
+	if d.DefaultGateway.IsZero() {
+		dhcp.DefaultGateway = ""
+	}
+	if d.BroadcastAddress.IsZero() {
+		dhcp.BroadcastAddress = ""
+	}
+
 	for _, elem := range d.NameServers {
 		dhcp.NameServers = append(dhcp.NameServers, elem.String())
 	}
@@ -214,7 +238,6 @@ func (d *DHCP) UnmarshalJSON(j []byte) error { // nolint: cyclop // TODO(jacobwe
 				return fmt.Errorf("failed to parse broadcastaddress: %v: %w", err, errUnmarshal)
 			}
 		case "ntpservers":
-
 			for _, elem := range v.([]interface{}) {
 				uv, ok := elem.(string)
 				if !ok {

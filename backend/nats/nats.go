@@ -19,11 +19,18 @@ import (
 
 const tracerName = "github.com/tinkerbell/dhcp"
 
-// Conn holds details about communicating with a Nats server.
-type Conn struct {
+// Config holds details about communicating with a Nats server.
+type Config struct {
 	Subject string
 	Timeout time.Duration
 	Conn    *nats.Conn
+	EConf   EventConf
+}
+
+// EventConf TODO(jacobweinstock): add comment.
+type EventConf struct {
+	Source string
+	Type   string
 }
 
 // DHCPRequest is the data passed to used in the request to the nats subject.
@@ -33,16 +40,18 @@ type DHCPRequest struct {
 }
 
 // Read implements the interface for getting data via a nats messaging request/reply pattern.
-func (c *Conn) Read(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *data.Netboot, error) {
+func (c *Config) Read(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *data.Netboot, error) {
+	// TODO(jacobweinstock): validate EventConf
+	// TODO(jacobweinstock): validate Conn.Subject, Conn.Timeout, Conn.Conn
 	tracer := otel.Tracer(tracerName)
 	ctx, span := tracer.Start(ctx, "backend.nats.Read")
 	defer span.End()
 
-	event, err := createCloudevent(ctx, uuid.New().String(), mac)
+	ctx = cloudevents.WithEncodingStructured(ctx)
+	event, err := c.createCloudevent(ctx, uuid.New().String(), mac)
 	if err != nil {
 		return nil, nil, err
 	}
-	ctx = cloudevents.WithEncodingStructured(ctx)
 
 	// do request/reply
 	reqCTX, cancel := context.WithTimeout(ctx, c.Timeout)
@@ -83,23 +92,16 @@ func (c *Conn) Read(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *dat
 	return d, n, nil
 }
 
-func createCloudevent(ctx context.Context, id string, mac net.HardwareAddr) (cloudevents.Event, error) {
+func (c *Config) createCloudevent(ctx context.Context, id string, mac net.HardwareAddr) (cloudevents.Event, error) {
 	event := cloudevents.NewEvent()
 	event.SetID(id)
-	event.SetSource("/tinkerbell/dhcp")
-	event.SetType("org.tinkerbell.dhcp.backend.read")
+	event.SetSource(c.EConf.Source)
+	event.SetType(c.EConf.Type)
 
 	err := event.SetData(cloudevents.ApplicationJSON, &DHCPRequest{Mac: mac, Traceparent: otelhelpers.TraceparentStringFromContext(ctx)})
 	if err != nil {
 		return cloudevents.Event{}, fmt.Errorf("failed to set cloudevents data")
 	}
-	cloudevents.WithEncodingStructured(ctx)
-	/*
-		b, err := event.MarshalJSON()
-		if err != nil {
-			return cloudevents.Event{}, fmt.Errorf("failed to marshal cloudevent into json: %w", err)
-		}
-	*/
 
 	return event, nil
 }

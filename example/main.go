@@ -89,12 +89,12 @@ func main() {
 	l.Error(s.ListenAndServe(ctx), "done")
 }
 
-func setupNats(u string) (*nats.Conn, error) {
+func setupNats(u string) (*nats.Config, error) {
 	nc, err := natsio.Connect(u)
 	if err != nil {
 		return nil, err
 	}
-	return &nats.Conn{
+	return &nats.Config{
 		Conn:    nc,
 		Timeout: time.Second * 5,
 		Subject: natsSubject,

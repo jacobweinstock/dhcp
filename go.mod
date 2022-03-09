@@ -13,6 +13,7 @@ require (
 	github.com/insomniacslk/dhcp v0.0.0-20220119180841-3c283ff8b7dd
 	github.com/nats-io/nats-server/v2 v2.7.2
 	github.com/nats-io/nats.go v1.13.1-0.20220121202836-972a071d373d
+	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
 	go.opentelemetry.io/otel v1.4.0
 	go.opentelemetry.io/otel/trace v1.4.0
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
