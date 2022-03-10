@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -98,14 +99,20 @@ func setupNats(u string) (*nats.Config, error) {
 		Conn:    nc,
 		Timeout: time.Second * 5,
 		Subject: natsSubject,
+		EConf: nats.EventConf{
+			Source: "/tinkerbell/dhcp",
+			Type:   "org.tinkerbell.backend.read",
+		},
 	}, nil
 }
 
 func responder(ctx context.Context, sub string) {
+	l := stdr.New(log.New(os.Stdout, "", log.Lshortfile))
 	// Connect to a server
 	nc, err := natsio.Connect(natsio.DefaultURL)
 	if err != nil {
 		fmt.Println("1")
+		l.Error(err, "failed to connect to nats")
 		return
 	}
 	defer nc.Close()
@@ -115,6 +122,7 @@ func responder(ctx context.Context, sub string) {
 		err := e.UnmarshalJSON(m.Data)
 		if err != nil {
 			fmt.Printf("failed to unmarshal received data into cloudevent: %v\n", err)
+			l.Error(err, "failed to unmarshal received data into cloudevent")
 			return
 		}
 
@@ -122,10 +130,9 @@ func responder(ctx context.Context, sub string) {
 		err = json.Unmarshal(e.Data(), rcData)
 		if err != nil {
 			fmt.Printf("failed to unmarshal received cloudevent.data into sendMsg: %v\n", err)
+			l.Error(err, "failed to unmarshal received cloudevent.data into sendMsg")
 			return
 		}
-
-		///
 
 		provisionTP := "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
 		ctxWithProvTP := otelhelpers.ContextWithTraceparentString(context.Background(), provisionTP)
@@ -148,8 +155,26 @@ func responder(ctx context.Context, sub string) {
 		spanTwo.SetAttributes(attribute.String("mac", rcData.Mac.String()))
 
 		// make call to tink server then populate a response.
-
-		resp := &data.DHCP{
+		resp := &data.Message{
+			DHCP: data.DHCP{
+				IPAddress:      netaddr.IPv4(192, 168, 2, 199),
+				SubnetMask:     net.IPMask(net.ParseIP("255.255.255.0").To4()),
+				DefaultGateway: netaddr.IPv4(192, 168, 2, 1),
+				NameServers: []net.IP{
+					net.ParseIP("1.1.1.1"),
+					net.ParseIP("8.8.8.8"),
+				},
+				Hostname:         "pxe-virtualbox",
+				BroadcastAddress: netaddr.IPv4(192, 168, 2, 255),
+				LeaseTime:        86400,
+				// Traceparent:      traceparent, // tsstring, // "00-deadbeefcafedeadbeefcafedeadbeef-123456789abcdef0-01",
+			},
+			Netboot: data.Netboot{
+				AllowNetboot:  true,
+				IPXEScriptURL: &url.URL{Scheme: "https", Host: "boot.netboot.xyz"},
+			},
+		}
+		/*resp2 := &data.DHCP{
 			IPAddress:      netaddr.IPv4(192, 168, 2, 199),
 			SubnetMask:     net.IPMask(net.ParseIP("255.255.255.0").To4()),
 			DefaultGateway: netaddr.IPv4(192, 168, 2, 1),
@@ -161,6 +186,10 @@ func responder(ctx context.Context, sub string) {
 			BroadcastAddress: netaddr.IPv4(192, 168, 2, 255),
 			LeaseTime:        86400,
 			// Traceparent:      traceparent, // tsstring, // "00-deadbeefcafedeadbeefcafedeadbeef-123456789abcdef0-01",
+		}*/
+		if !bytes.EqualFold(rcData.Mac, []byte{0x08, 0x00, 0x27, 0x29, 0x4e, 0x67}) {
+			fmt.Println("mac not found", rcData.Mac)
+			resp = &data.Message{Error: data.Error{Code: 404, Message: "mac not found"}}
 		}
 		ceResp := cloudevents.NewEvent()
 		ceResp.SetID(uuid.New().String())
@@ -177,6 +206,7 @@ func responder(ctx context.Context, sub string) {
 			fmt.Printf("failed to json marshal cloudevent: %v\n", err)
 			spanTwo.SetStatus(codes.Error, err.Error())
 			spanOne.SetStatus(codes.Error, err.Error())
+			l.Error(err, "failed to json marshal cloudevent")
 			return
 		}
 		err = nc.Publish(m.Reply, b)
@@ -188,6 +218,7 @@ func responder(ctx context.Context, sub string) {
 	})
 	if err != nil {
 		log.Println(err)
+		l.Error(err, "failed to subscribe to nats")
 		return
 	}
 	defer subsc.Drain() // nolint: errcheck // just a basic example

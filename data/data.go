@@ -14,26 +14,41 @@ import (
 
 var errUnmarshal = fmt.Errorf("unable to unmarshal")
 
+type Message struct {
+	DHCP    `json:",inline"`
+	Netboot `json:",inline"`
+	Error   `json:",inline"`
+}
+
 // DHCP holds the headers and options available to be set in a DHCP server response.
 // This is the API between the DHCP server and a backend.
 type DHCP struct {
-	MACAddress       net.HardwareAddr // chaddr DHCP header.
-	IPAddress        netaddr.IP       // yiaddr DHCP header.
-	SubnetMask       net.IPMask       // DHCP option 1.
-	DefaultGateway   netaddr.IP       // DHCP option 3.
-	NameServers      []net.IP         // DHCP option 6.
-	Hostname         string           // DHCP option 12.
-	DomainName       string           // DHCP option 15.
-	BroadcastAddress netaddr.IP       // DHCP option 28.
-	NTPServers       []net.IP         // DHCP option 42.
-	LeaseTime        uint32           // DHCP option 51.
-	DomainSearch     []string         // DHCP option 119.
+	MACAddress       net.HardwareAddr `json:"MACAddress"`       // chaddr DHCP header.
+	IPAddress        netaddr.IP       `json:"IPAddress"`        // yiaddr DHCP header.
+	SubnetMask       net.IPMask       `json:"SubnetMask"`       // DHCP option 1.
+	DefaultGateway   netaddr.IP       `json:"DefaultGateway"`   // DHCP option 3.
+	NameServers      []net.IP         `json:"NameServers"`      // DHCP option 6.
+	Hostname         string           `json:"Hostname"`         // DHCP option 12.
+	DomainName       string           `json:"DomainName"`       // DHCP option 15.
+	BroadcastAddress netaddr.IP       `json:"BroadcastAddress"` // DHCP option 28.
+	NTPServers       []net.IP         `json:"NTPServers"`       // DHCP option 42.
+	LeaseTime        uint32           `json:"LeaseTime"`        // DHCP option 51.
+	DomainSearch     []string         `json:"DomainSearch"`     // DHCP option 119.
+}
+
+type Error struct {
+	Code    int    `json:"Code"`
+	Message string `json:"Message"`
 }
 
 // Netboot holds info used in netbooting a client.
 type Netboot struct {
-	AllowNetboot  bool     // If true, the client will be provided netboot options in the DHCP offer/ack.
-	IPXEScriptURL *url.URL // Overrides a default value that is passed into DHCP on startup.
+	AllowNetboot  bool     `json:"AllowNetboot"`  // If true, the client will be provided netboot options in the DHCP offer/ack.
+	IPXEScriptURL *url.URL `json:"IPXEScriptURL"` // Overrides a default value that is passed into DHCP on startup.
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("code: %v, message: %v", e.Code, e.Message)
 }
 
 // EncodeToAttributes returns a slice of opentelemetry attributes that can be used to set span.SetAttributes.
@@ -152,6 +167,59 @@ func (d *DHCP) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(dhcp)
+}
+
+func (e *Error) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Code    int    `json:"Code"`
+		Message string `json:"Message"`
+	}{
+		Code:    e.Code,
+		Message: e.Message,
+	})
+}
+
+func (e *Error) UnmarshalJSON(b []byte) error {
+	var err struct {
+		Code    int    `json:"Code"`
+		Message string `json:"Message"`
+	}
+	if err := json.Unmarshal(b, &err); err != nil {
+		return err
+	}
+	e.Code = err.Code
+	e.Message = err.Message
+	return nil
+}
+
+func (n *Netboot) MarshalJSON() ([]byte, error) {
+	netboot := struct {
+		AllowNetboot  bool     `json:"AllowNetboot"`
+		IPXEScriptURL *url.URL `json:"IPXEScriptURL"`
+	}{
+		AllowNetboot: n.AllowNetboot,
+	}
+	if n.IPXEScriptURL != nil {
+		netboot.IPXEScriptURL = n.IPXEScriptURL
+	}
+
+	return json.Marshal(netboot)
+}
+
+func (n *Netboot) UnmarshalJSON(b []byte) error {
+	var netboot struct {
+		AllowNetboot  bool     `json:"AllowNetboot"`
+		IPXEScriptURL *url.URL `json:"IPXEScriptURL"`
+	}
+	err := json.Unmarshal(b, &netboot)
+	if err != nil {
+		return err
+	}
+
+	n.AllowNetboot = netboot.AllowNetboot
+	n.IPXEScriptURL = netboot.IPXEScriptURL
+
+	return nil
 }
 
 // UnmarshalJSON is the custom unmarshaller for the DHCP struct.

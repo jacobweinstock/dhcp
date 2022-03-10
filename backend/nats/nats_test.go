@@ -5,13 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
+	"os"
 	"testing"
 	"time"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/stdr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/imdario/mergo"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/phayes/freeport"
@@ -236,3 +241,25 @@ func TestServer(t *testing.T) {
 var netaddrComparer = cmp.Comparer(func(x, y netaddr.IP) bool {
 	return x.Compare(y) == 0
 })
+
+func TestMerge(t *testing.T) {
+	c := &Config{Log: stdr.New(log.New(os.Stdout, "", log.Lshortfile))}
+	stdr.SetVerbosity(1)
+	defaults := &Config{
+		Log:     logr.Discard(),
+		Timeout: time.Second * 5,
+		Subject: "dhcp",
+		EConf: EventConf{
+			Source: "/tinkerbell/dhcp",
+			Type:   "org.tinkerbell.dhcp.backend.nats.read",
+		},
+	}
+
+	err := mergo.Merge(c, defaults, mergo.WithTransformers(c))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", c)
+	c.Log.V(1).Info("nats.Read", "config", c)
+	t.Fatal()
+}
