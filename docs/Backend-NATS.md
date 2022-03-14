@@ -8,7 +8,8 @@ This will allow legacy backends like [cacher](https://github.com/tinkerbell/boot
 
 ## Message Format
 
-This backend uses the [cloudevents](https://cloudevents.io/) [spec](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md) to send and receive messages.
+Both the [request](#request-message-schema) and [response](#response-message-schema) messages must formatted as [cloudevents](https://cloudevents.io/) ([spec](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md)).
+With the `data` field containing the DHCP specific message payload.
 
 Example:
 
@@ -27,25 +28,122 @@ Example:
 }
 ```
 
-For the `data` field, the backend will send JSON of:
+### Request Message Schema
+
+The schema for the request message is as follows:
 
 ```go
 // DHCPRequest is the data passed to listening backends.
 type DHCPRequest struct {
-    Mac net.HardwareAddr `json:"MacAddress"`
+    Mac         net.HardwareAddr `json:"MACAddress"`
+    Traceparent string           `json:"Traceparent"`
+}
+```
+
+### Response Message Schema
+
+```go
+type Message struct {
+    DHCP    `json:",inline"`
+    Netboot `json:",inline"`
+    Error   `json:",inline"`
+}
+
+// DHCP holds the headers and options available to be set in a DHCP server response.
+// This is the API between the DHCP server and a backend.
+type DHCP struct {
+    MACAddress       net.HardwareAddr `json:"MACAddress"`       // chaddr DHCP header.
+    IPAddress        netaddr.IP       `json:"IPAddress"`        // yiaddr DHCP header.
+    SubnetMask       net.IPMask       `json:"SubnetMask"`       // DHCP option 1.
+    DefaultGateway   netaddr.IP       `json:"DefaultGateway"`   // DHCP option 3.
+    NameServers      []net.IP         `json:"NameServers"`      // DHCP option 6.
+    Hostname         string           `json:"Hostname"`         // DHCP option 12.
+    DomainName       string           `json:"DomainName"`       // DHCP option 15.
+    BroadcastAddress netaddr.IP       `json:"BroadcastAddress"` // DHCP option 28.
+    NTPServers       []net.IP         `json:"NTPServers"`       // DHCP option 42.
+    LeaseTime        uint32           `json:"LeaseTime"`        // DHCP option 51.
+    DomainSearch     []string         `json:"DomainSearch"`     // DHCP option 119.
+}
+
+// Netboot holds info used in netbooting a client.
+type Netboot struct {
+    AllowNetboot  bool     `json:"AllowNetboot"`  // If true, the client will be provided netboot options in the DHCP offer/ack.
+    IPXEScriptURL *url.URL `json:"IPXEScriptURL"` // Overrides a default value that is passed into DHCP on startup.
+}
+
+type Error struct {
+    Code    int    `json:"Code"`
+    Message string `json:"Message"`
+}
+```
+
+```json
+{
+    "MACAddress":null,
+    "IPAddress":"192.168.2.3",
+    "SubnetMask":null,
+    "DefaultGateway":"",
+    "NameServers":null,
+    "Hostname":"",
+    "DomainName":"",
+    "BroadcastAddress":"",
+    "NTPServers":null,
+    "LeaseTime":0,
+    "DomainSearch":null,
+    "AllowNetboot":false,
+    "IPXEScriptURL":null,
+    "Error": {
+        "Code":0,
+        "Message":""
+    }
+}
+
+{
+    "DHCP": {
+        "MACAddress":"",
+        "IPAddress":"",
+        "SubnetMask":"",
+        "DefaultGateway":"",
+        "NameServers": [],
+        "Hostname":"",
+        "DomainName":"",
+        "BroadcastAddress":"",
+        "NTPServers": [],
+        "LeaseTime":0,
+        "DomainSearch": []
+    },
+    "Netboot": {
+        "AllowNetboot":false,
+        "IPXEScriptURL":""
+    },
+    "Error": {
+        "Code":0,
+        "Message":""
+    }
+}
+
+```
+
+### Example CloudEvent
+
+The following is an example for how to send the request message payload inside of a cloudevent.
+
+```go
+// DHCPRequest is the data passed to listening backends.
+type DHCPRequest struct {
+    Mac         net.HardwareAddr `json:"MACAddress"`
+    Traceparent string           `json:"Traceparent"`
 }
 
 // create a cloudevent.
 event := cloudevents.NewEvent()
 
 // Set the data to the DHCPRequest struct.
-event.SetData(cloudevents.ApplicationJSON, &DHCPRequest{Mac: mac})
+event.SetData(cloudevents.ApplicationJSON, &DHCPRequest{Mac: mac, Traceparent: tp})
 
-// Be sure to add encoding of structured data to the context of the request.
+// Be sure to add encoding of structured data to the context of the request. (why?)
 ctx = cloudevents.WithEncodingStructured(ctx)
 ```
-
-}
 
 ## Architecture
 

@@ -15,9 +15,9 @@ import (
 var errUnmarshal = fmt.Errorf("unable to unmarshal")
 
 type Message struct {
-	DHCP    `json:",inline"`
-	Netboot `json:",inline"`
-	Error   `json:",inline"`
+	DHCP    `json:"DHCP"`
+	Netboot `json:"Netboot"`
+	Error   `json:"Error"`
 }
 
 // DHCP holds the headers and options available to be set in a DHCP server response.

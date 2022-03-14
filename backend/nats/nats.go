@@ -87,7 +87,6 @@ func (c *Config) Read(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *d
 	}
 
 	// response
-
 	ms, err := c.Conn.RequestWithContext(reqCTX, c.Subject, b)
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
