@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"reflect"
 
 	"github.com/go-logr/logr"
+	"github.com/imdario/mergo"
 	"github.com/insomniacslk/dhcp/dhcpv4/server4"
 )
 
@@ -15,15 +17,25 @@ type Config struct {
 	Logger     logr.Logger
 	Listener   netip.AddrPort
 	DHCPServer *net.UDPAddr
+	MaxHops    uint8
 }
 
 func (c *Config) ListenAndServe(ctx context.Context) error {
+	defaults := &Config{
+		Logger:   logr.Discard(),
+		Listener: netip.AddrPortFrom(netip.AddrFrom4([4]byte{0, 0, 0, 0}), 67),
+		MaxHops:  16,
+	}
+	err := mergo.Merge(c, defaults, mergo.WithTransformers(c))
+	if err != nil {
+		return err
+	}
 	// for broadcast traffic we need to listen on all IPs
 	addr := &net.UDPAddr{
 		IP:   net.ParseIP("0.0.0.0"),
 		Port: 67, //int(c.Listener.Port()),
 	}
-	c.Logger.Info("debugging", "port", c.Listener.Port(), "ip", c.Listener.Addr().String())
+	c.Logger.Info("debugging", "port", c.Listener.Port(), "ip", c.Listener.Addr().String(), "maxHops", c.MaxHops)
 	c.Logger.Info("debugging", "dhcpServer", c.DHCPServer.String())
 
 	i := getInterfaceByIP(c.Listener.Addr().String())
@@ -62,4 +74,23 @@ func getInterfaceByIP(ip string) string {
 		}
 	}
 	return ""
+}
+
+// Transformer for merging the netaddr.IPPort and logr.Logger structs.
+func (c *Config) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
+	switch typ {
+	case reflect.TypeOf(logr.Logger{}):
+		return func(dst, src reflect.Value) error {
+			if dst.CanSet() {
+				isZero := dst.MethodByName("GetSink")
+				result := isZero.Call(nil)
+				if result[0].IsNil() {
+					dst.Set(src)
+				}
+			}
+			return nil
+		}
+	}
+
+	return nil
 }
