@@ -13,6 +13,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4/server4"
 )
 
+// Config for relaying DHCP.
 type Config struct {
 	Logger     logr.Logger
 	Listener   netip.AddrPort
@@ -20,6 +21,7 @@ type Config struct {
 	MaxHops    uint8
 }
 
+// ListenAndServe listens for DHCP request and starts the DHCP relay handler.
 func (c *Config) ListenAndServe(ctx context.Context) error {
 	defaults := &Config{
 		Logger:   logr.Discard(),
@@ -33,7 +35,7 @@ func (c *Config) ListenAndServe(ctx context.Context) error {
 	// for broadcast traffic we need to listen on all IPs
 	addr := &net.UDPAddr{
 		IP:   net.ParseIP("0.0.0.0"),
-		Port: 67, //int(c.Listener.Port()),
+		Port: 67, // int(c.Listener.Port()),
 	}
 	c.Logger.Info("debugging", "port", c.Listener.Port(), "ip", c.Listener.Addr().String(), "maxHops", c.MaxHops)
 	c.Logger.Info("debugging", "dhcpServer", c.DHCPServer.String())
@@ -78,7 +80,7 @@ func getInterfaceByIP(ip string) string {
 
 // Transformer for merging the netaddr.IPPort and logr.Logger structs.
 func (c *Config) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
-	switch typ {
+	switch typ { // nolint:gocritic,revive // There will almost certainly be more of these cases.
 	case reflect.TypeOf(logr.Logger{}):
 		return func(dst, src reflect.Value) error {
 			if dst.CanSet() {

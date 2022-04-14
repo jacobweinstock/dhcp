@@ -32,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	relay := &relay.Config{
+	r := &relay.Config{
 		Logger:     l,
 		Listener:   netip.AddrPortFrom(ls, 67),
 		DHCPServer: &net.UDPAddr{IP: net.ParseIP(relayTo), Port: 6767},
@@ -40,7 +40,7 @@ func main() {
 	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGHUP, syscall.SIGTERM)
 	defer done()
 
-	l.Info("starting server", "addr", relay.Listener)
-	l.Error(relay.ListenAndServe(ctx), "done")
+	l.Info("starting server", "addr", r.Listener)
+	l.Error(r.ListenAndServe(ctx), "done")
 	l.Info("done")
 }

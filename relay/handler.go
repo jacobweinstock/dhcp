@@ -7,7 +7,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 )
 
-func (c *Config) handleFunc(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
+func (c *Config) handleFunc(conn net.PacketConn, _ net.Addr, m *dhcpv4.DHCPv4) {
 	c.Logger.Info("received DHCP packet", "type", m.MessageType().String())
 
 	reply, err := dhcpv4.FromBytes(m.ToBytes())
@@ -99,14 +99,13 @@ func (c *Config) setCastType(d *dhcpv4.DHCPv4) {
 
 func (c *Config) setDest(d *dhcpv4.DHCPv4) net.Addr {
 	var dst net.Addr
-	fmt.Println("d.GatewayIPAddr", d.GatewayIPAddr.String())
 	ip := c.Listener.Addr().String()
-	if !d.GatewayIPAddr.Equal(net.IPv4zero) && !d.GatewayIPAddr.Equal(net.ParseIP(ip)) {
+	switch {
+	case !d.GatewayIPAddr.Equal(net.IPv4zero) && !d.GatewayIPAddr.Equal(net.ParseIP(ip)):
 		dst = &net.UDPAddr{IP: d.GatewayIPAddr, Port: 67}
-		// also set GIADDR
-	} else if !d.ClientIPAddr.Equal(net.IPv4zero) {
+	case !d.ClientIPAddr.Equal(net.IPv4zero):
 		dst = &net.UDPAddr{IP: d.ClientIPAddr, Port: 68}
-	} else {
+	default:
 		dst = &net.UDPAddr{IP: net.IPv4bcast, Port: 68}
 	}
 
