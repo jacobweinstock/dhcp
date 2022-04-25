@@ -32,10 +32,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	to := net.ParseIP(relayTo)
+	l.Info("debugging", "to", to, "relayTo", relayTo)
 	r := &relay.Config{
 		Logger:     l,
 		Listener:   netip.AddrPortFrom(ls, 67),
-		DHCPServer: &net.UDPAddr{IP: net.ParseIP(relayTo), Port: 6767},
+		DHCPServer: &net.UDPAddr{IP: to, Port: 6767},
 	}
 	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGHUP, syscall.SIGTERM)
 	defer done()

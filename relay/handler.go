@@ -49,7 +49,7 @@ func (c *Config) handleFunc(conn net.PacketConn, _ net.Addr, m *dhcpv4.DHCPv4) {
 		return
 	}
 
-	c.Logger.Info("DEBUGGING", "dst", dst)
+	c.Logger.Info("DEBUGGING", "dst", dst, "IsBroadcast", m.IsBroadcast())
 	if _, err := conn.WriteTo(reply.ToBytes(), dst); err != nil {
 		c.Logger.Error(err, "failed send DHCP packet")
 		return
@@ -105,6 +105,8 @@ func (c *Config) setDest(d *dhcpv4.DHCPv4) net.Addr {
 		dst = &net.UDPAddr{IP: d.GatewayIPAddr, Port: 67}
 	case !d.ClientIPAddr.Equal(net.IPv4zero):
 		dst = &net.UDPAddr{IP: d.ClientIPAddr, Port: 68}
+	case !d.YourIPAddr.Equal(net.IPv4zero):
+		dst = &net.UDPAddr{IP: d.YourIPAddr, Port: 68}
 	default:
 		dst = &net.UDPAddr{IP: net.IPv4bcast, Port: 68}
 	}

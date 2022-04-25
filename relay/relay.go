@@ -35,13 +35,15 @@ func (c *Config) ListenAndServe(ctx context.Context) error {
 	// for broadcast traffic we need to listen on all IPs
 	addr := &net.UDPAddr{
 		IP:   net.ParseIP("0.0.0.0"),
-		Port: 67, // int(c.Listener.Port()),
+		Port: int(c.Listener.Port()),
 	}
 	c.Logger.Info("debugging", "port", c.Listener.Port(), "ip", c.Listener.Addr().String(), "maxHops", c.MaxHops)
 	c.Logger.Info("debugging", "dhcpServer", c.DHCPServer.String())
 
 	i := getInterfaceByIP(c.Listener.Addr().String())
-	srv, err := server4.NewServer(i, addr, c.handleFunc, server4.WithDebugLogger())
+	conn, _ := net.ListenPacket("udp4", ":67")
+	//i := ""
+	srv, err := server4.NewServer(i, addr, c.handleFunc, server4.WithDebugLogger(), server4.WithConn(conn))
 	if err != nil {
 		return err
 	}

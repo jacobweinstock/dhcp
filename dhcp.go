@@ -86,7 +86,12 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 
 	s.ctx = ctx
 	// server4.NewServer() will isolate listening to the specific interface.
-	srv, err := server4.NewServer(getInterfaceByIP(s.Listener.IP().String()), conn, s.handleFunc)
+	// TODO(jacobweinstock): fail if the IP given at s.Listener.IP is not associated with a local interface.
+	ifname := getInterfaceByIP(s.Listener.IP().String())
+	if ifname == "" {
+		return fmt.Errorf("no local interface found for IP: %s", s.Listener.IP())
+	}
+	srv, err := server4.NewServer(ifname, conn, s.handleFunc)
 	if err != nil {
 		return err
 	}
