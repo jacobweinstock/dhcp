@@ -36,8 +36,8 @@ type Server struct {
 	// This could be a load balancer IP address or an ingress IP address or a local IP address.
 	IPAddr netaddr.IP
 
-	// iPXE binary server IP:Port serving via TFTP.
-	IPXEBinServerTFTP netaddr.IPPort
+	// IPXEBinServerTFTP is the URL to the iPXE binary server listening via TFTP.
+	IPXEBinServerTFTP *url.URL
 
 	// IPXEBinServerHTTP is the URL to the IPXE binary server serving via HTTP(s).
 	IPXEBinServerHTTP *url.URL

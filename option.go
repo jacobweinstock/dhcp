@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"path"
 	"strings"
 
 	"github.com/equinix-labs/otel-init-go/otelhelpers"
@@ -146,6 +147,7 @@ func (s *Server) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *da
 				ipxeScript = n.IPXEScriptURL
 			}
 			d.BootFileName, d.ServerIPAddr = s.bootfileAndNextServer(ctx, uClass, opt60, bin, s.IPXEBinServerTFTP, s.IPXEBinServerHTTP, ipxeScript)
+			s.Log.Info("DEBUGGING", "bootfile", d.BootFileName, "server", d.ServerIPAddr)
 			pxe := dhcpv4.Options{ // FYI, these are suboptions of option43. ref: https://datatracker.ietf.org/doc/html/rfc2132#section-8.4
 				// PXE Boot Server Discovery Control - bypass, just boot from filename.
 				6:  []byte{8},
@@ -161,11 +163,10 @@ func (s *Server) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *da
 // bootfileAndNextServer returns the bootfile (string) and next server (net.IP).
 // input arguments `tftp`, `ipxe` and `iscript` use non string types so as to attempt to be more clear about the expectation around what is wanted for these values.
 // It also helps us avoid having to validate a string in multiple ways.
-func (s *Server) bootfileAndNextServer(ctx context.Context, uClass UserClass, opt60, bin string, tftp netaddr.IPPort, ipxe, iscript *url.URL) (string, net.IP) {
+func (s *Server) bootfileAndNextServer(ctx context.Context, uClass UserClass, opt60, bin string, tftp, ipxe, iscript *url.URL) (string, net.IP) {
 	var nextServer net.IP
 	var bootfile string
-	if s.OTELEnabled {
-		tp := otelhelpers.TraceparentStringFromContext(ctx)
+	if tp := otelhelpers.TraceparentStringFromContext(ctx); s.OTELEnabled && tp != "" {
 		bin = fmt.Sprintf("%s-%v", bin, tp)
 	}
 	// If a machine is in an ipxe boot loop, it is likely to be that we aren't matching on IPXE or Tinkerbell userclass (option 77).
@@ -176,22 +177,68 @@ func (s *Server) bootfileAndNextServer(ctx context.Context, uClass UserClass, op
 			bootfile = iscript.String()
 		}
 	case clientType(opt60) == httpClient: // Check the client type from option 60.
-		bootfile = fmt.Sprintf("%s/%s", ipxe, bin)
-		ns := net.ParseIP(ipxe.Host)
-		if ns == nil {
-			s.Log.Error(fmt.Errorf("unable to parse ipxe host"), "ipxe", ipxe.Host)
-			ns = net.ParseIP("0.0.0.0")
+		bf := *ipxe
+		bf.Path = bin
+		bootfile = bf.String()
+		// bootfile = fmt.Sprintf("%v/%v", ipxe.String(), bin)
+		if ns := parseIP(ipxe.Host); ns == nil {
+			s.Log.Error(fmt.Errorf("unable to parse ipxe host"), "unable to parse ipxe host", "ipxe", ipxe.Host)
+			nextServer = lookupIP(ipxe.Host)
+		} else {
+			nextServer = ns
 		}
-		nextServer = ns
 	case uClass == IPXE: // if the "iPXE" user class is found it means we aren't in our custom version of ipxe, but because of the option 43 we're setting we need to give a full tftp url from which to boot.
-		bootfile = fmt.Sprintf("tftp://%v/%v", tftp.String(), bin)
-		nextServer = tftp.UDPAddr().IP
+		bf := *tftp
+		bf.Path = path.Join(bf.Path, bin)
+		bootfile = bf.String()
+		// bootfile = fmt.Sprintf("%v/%v", tftp.String(), bin)
+		if ns := parseIP(tftp.Host); ns == nil {
+			// Do a DNS lookup for the IP to use in the next server?
+			nextServer = lookupIP(tftp.Host)
+			// s.Log.Error(fmt.Errorf("unable to parse IP from tftp host"), "tftp", tftp, "tftp.Host", tftp.Host)
+
+		} else {
+			nextServer = ns
+		}
 	default:
-		bootfile = bin
-		nextServer = tftp.UDPAddr().IP
+		if ns := parseIP(tftp.Host); ns == nil {
+			// Do a DNS lookup for the IP to use in the next server?
+			nextServer = lookupIP(tftp.Host)
+			bf := *tftp
+			bf.Path = path.Join(bf.Path, bin)
+			bootfile = bf.String()
+		} else {
+			nextServer = ns
+			bootfile = bin
+		}
 	}
 
 	return bootfile, nextServer
+}
+
+func lookupIP(s string) net.IP {
+	h := strings.Split(s, ":")
+	if len(h) > 0 {
+		if ips, err := net.LookupIP(h[0]); err == nil {
+			for _, ip := range ips {
+				if ip.To4() != nil {
+					return ip
+				}
+			}
+		}
+	}
+
+	return net.IPv4(0, 0, 0, 0)
+}
+
+func parseIP(s string) net.IP {
+	if ip := net.ParseIP(s); ip != nil {
+		return ip
+	}
+	if ipp, err := netaddr.ParseIPPort(s); err == nil {
+		return ipp.IP().IPAddr().IP
+	}
+	return nil
 }
 
 // arch returns the arch of the client pulled from DHCP option 93.

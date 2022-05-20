@@ -150,7 +150,7 @@ func TestBootfileAndNextServer(t *testing.T) {
 		uClass  UserClass
 		opt60   string
 		bin     string
-		tftp    netaddr.IPPort
+		tftp    *url.URL
 		ipxe    *url.URL
 		iscript *url.URL
 	}
@@ -178,7 +178,7 @@ func TestBootfileAndNextServer(t *testing.T) {
 				ipxe:  &url.URL{Scheme: "http", Host: "localhost:8181"},
 			},
 			wantBootFile: "http://localhost:8181/snp.ipxe",
-			wantNextSrv:  net.IPv4(0, 0, 0, 0),
+			wantNextSrv:  net.IPv4(127, 0, 0, 1),
 		},
 		"success userclass iPXE": {
 			server: &Server{Log: logr.Discard()},
@@ -186,7 +186,7 @@ func TestBootfileAndNextServer(t *testing.T) {
 				mac:    net.HardwareAddr{0x01, 0x02, 0x03, 0x04, 0x05, 0x07},
 				uClass: IPXE,
 				bin:    "unidonly.kpxe",
-				tftp:   netaddr.IPPortFrom(netaddr.IPv4(192, 168, 6, 5), 69),
+				tftp:   &url.URL{Scheme: "tftp", Host: "192.168.6.5:69"},
 				ipxe:   &url.URL{Scheme: "tftp", Host: "192.168.6.5:69"},
 			},
 			wantBootFile: "tftp://192.168.6.5:69/unidonly.kpxe",
@@ -198,7 +198,7 @@ func TestBootfileAndNextServer(t *testing.T) {
 				mac:    net.HardwareAddr{0x01, 0x02, 0x03, 0x04, 0x05, 0x07},
 				uClass: IPXE,
 				bin:    "unidonly.kpxe",
-				tftp:   netaddr.IPPortFrom(netaddr.IPv4(192, 168, 6, 5), 69),
+				tftp:   &url.URL{Scheme: "tftp", Host: "192.168.6.5:69"},
 				ipxe:   &url.URL{Scheme: "tftp", Host: "192.168.6.5:69"},
 			},
 			wantBootFile: "tftp://192.168.6.5:69/unidonly.kpxe-00-23b1e307bb35484f535a1f772c06910e-d887dc3912240434-01",
@@ -209,7 +209,7 @@ func TestBootfileAndNextServer(t *testing.T) {
 			args: args{
 				mac:  net.HardwareAddr{0x01, 0x02, 0x03, 0x04, 0x05, 0x07},
 				bin:  "unidonly.kpxe",
-				tftp: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 6, 5), 69),
+				tftp: &url.URL{Scheme: "tftp", Host: "192.168.6.5:69"},
 				ipxe: &url.URL{Scheme: "tftp", Host: "192.168.6.5:69"},
 			},
 			wantBootFile: "unidonly.kpxe",
@@ -330,5 +330,40 @@ func TestBinaryTpFromContext(t *testing.T) {
 	got := binaryTpFromContext(rmSpan)
 	if !bytes.Equal(got, want) {
 		t.Errorf("binaryTpFromContext() = %v, want %v", got, want)
+	}
+}
+
+func TestLookupIP(t *testing.T) {
+	tests := map[string]struct {
+		input string
+		want  net.IP
+	}{
+		"success":           {input: "localhost", want: net.IPv4(127, 0, 0, 1)},
+		"success with port": {input: "localhost:8080", want: net.IPv4(127, 0, 0, 1)},
+		"failure"
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			if !bytes.Equal(tt.want, lookupIP(tt.input)) {
+				t.Errorf("lookupIP() = %v, want %v", lookupIP(tt.input), tt.want)
+			}
+		})
+	}
+}
+
+func TestParseIP(t *testing.T) {
+	tests := map[string]struct {
+		input string
+		want  net.IP
+	}{
+		"success":           {input: "localhost", want: net.IPv4(127, 0, 0, 1)},
+		"success with port": {input: "localhost:8080", want: net.IPv4(127, 0, 0, 1)},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			if !bytes.Equal(tt.want, lookupIP(tt.input)) {
+				t.Errorf("lookupIP() = %v, want %v", lookupIP(tt.input), tt.want)
+			}
+		})
 	}
 }
