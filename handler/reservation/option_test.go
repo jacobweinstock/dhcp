@@ -146,7 +146,7 @@ func TestArch(t *testing.T) {
 func TestBootfileAndNextServer(t *testing.T) {
 	type args struct {
 		mac     net.HardwareAddr
-		uClass  UserClass
+		uClass  userClass
 		opt60   string
 		bin     string
 		tftp    netaddr.IPPort
@@ -163,7 +163,7 @@ func TestBootfileAndNextServer(t *testing.T) {
 		"success bootfile only": {
 			server: &Handler{Log: logr.Discard()},
 			args: args{
-				uClass:  Tinkerbell,
+				uClass:  tinkerbell,
 				iscript: &url.URL{Scheme: "http", Host: "localhost:8080", Path: "/auto.ipxe"},
 			},
 			wantBootFile: "http://localhost:8080/auto.ipxe",
@@ -184,7 +184,7 @@ func TestBootfileAndNextServer(t *testing.T) {
 			server: &Handler{Log: logr.Discard()},
 			args: args{
 				mac:    net.HardwareAddr{0x01, 0x02, 0x03, 0x04, 0x05, 0x07},
-				uClass: IPXE,
+				uClass: ipxe,
 				bin:    "unidonly.kpxe",
 				tftp:   netaddr.IPPortFrom(netaddr.IPv4(192, 168, 6, 5), 69),
 				ipxe:   &url.URL{Scheme: "tftp", Host: "192.168.6.5:69"},
@@ -197,7 +197,7 @@ func TestBootfileAndNextServer(t *testing.T) {
 			otelEnabled: true,
 			args: args{
 				mac:    net.HardwareAddr{0x01, 0x02, 0x03, 0x04, 0x05, 0x07},
-				uClass: IPXE,
+				uClass: ipxe,
 				bin:    "unidonly.kpxe",
 				tftp:   netaddr.IPPortFrom(netaddr.IPv4(192, 168, 6, 5), 69),
 				ipxe:   &url.URL{Scheme: "tftp", Host: "192.168.6.5:69"},
@@ -275,7 +275,7 @@ func TestSetNetworkBootOpts(t *testing.T) {
 				m: &dhcpv4.DHCPv4{
 					ClientHWAddr: net.HardwareAddr{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
 					Options: dhcpv4.OptionsFromList(
-						dhcpv4.OptUserClass(Tinkerbell.String()),
+						dhcpv4.OptUserClass(tinkerbell.String()),
 						dhcpv4.OptClassIdentifier("HTTPClient:xxxxx"),
 						dhcpv4.OptClientArch(iana.EFI_X86_64_HTTP),
 					),
@@ -297,7 +297,7 @@ func TestSetNetworkBootOpts(t *testing.T) {
 				m: &dhcpv4.DHCPv4{
 					ClientHWAddr: net.HardwareAddr{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
 					Options: dhcpv4.OptionsFromList(
-						dhcpv4.OptUserClass(Tinkerbell.String()),
+						dhcpv4.OptUserClass(tinkerbell.String()),
 						dhcpv4.OptClientArch(iana.UBOOT_ARM64),
 					),
 				},

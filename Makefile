@@ -15,11 +15,11 @@ cover: ## Run unit tests with coverage report
 
 .PHONY: build-linux
 build-linux: ## Compile for linux
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags '-s -w -extldflags "-static"' -o bin/${BINARY}-linux cmd/main.go
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags '-s -w -extldflags "-static"' -o bin/${BINARY}-linux example/fileBackend/main.go
 
 .PHONY: build-darwin
 build-darwin: ## Compile for darwin
-	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -extldflags '-static'" -o bin/${BINARY}-darwin cmd/main.go
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -extldflags '-static'" -o bin/${BINARY}-darwin example/fileBackend/main.go
 
 .PHONY: build
 build: ## Compile the binary for the native OS

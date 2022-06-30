@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/insomniacslk/dhcp/dhcpv4"
@@ -28,10 +29,10 @@ func TestEncode(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			e := &Encoder{}
-			got := e.Encode(tt.pkt, "test")
+			l := logr.Discard()
+			got := Encode(l, tt.pkt, "test")
 			if tt.allEncoders {
-				got = e.Encode(tt.pkt, "test", AllEncoders()...)
+				got = Encode(l, tt.pkt, "test", AllEncoders()...)
 			}
 			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(attribute.Value{})); diff != "" {
 				t.Log(got)

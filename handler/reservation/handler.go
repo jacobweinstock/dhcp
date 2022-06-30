@@ -20,15 +20,6 @@ import (
 
 const tracerName = "github.com/tinkerbell/dhcp/server"
 
-// BackendReader is the interface that wraps the Read method.
-//
-// Backends implement this interface to provide DHCP data to the DHCP server.
-type BackendReader interface {
-	// Read data (from a backend) based on a mac address
-	// and return DHCP headers and options, including netboot info.
-	Read(context.Context, net.HardwareAddr) (*data.DHCP, *data.Netboot, error)
-}
-
 // setDefaults will update the Handler struct to have default values so as
 // to avoid panic for nil pointers and such.
 func (h *Handler) setDefaults() {
@@ -216,7 +207,6 @@ func (h *Handler) isNetbootClient(pkt *dhcpv4.DHCPv4) bool {
 // encodeToAttributes takes a DHCP packet and returns opentelemetry key/value attributes.
 func (h *Handler) encodeToAttributes(d *dhcpv4.DHCPv4, namespace string) []attribute.KeyValue {
 	h.setDefaults()
-	a := &oteldhcp.Encoder{Log: h.Log}
 
-	return a.Encode(d, namespace, oteldhcp.AllEncoders()...)
+	return oteldhcp.Encode(h.Log, d, namespace, oteldhcp.AllEncoders()...)
 }

@@ -2,11 +2,23 @@
 package reservation
 
 import (
+	"context"
+	"net"
 	"net/url"
 
 	"github.com/go-logr/logr"
+	"github.com/tinkerbell/dhcp/data"
 	"inet.af/netaddr"
 )
+
+// BackendReader is the interface that wraps the Read method.
+//
+// Backends implement this interface to provide DHCP data to the DHCP server.
+type BackendReader interface {
+	// Read data (from a backend) based on a mac address
+	// and return DHCP headers and options, including netboot info.
+	Read(context.Context, net.HardwareAddr) (*data.DHCP, *data.Netboot, error)
+}
 
 // Handler holds the configuration details for the running the DHCP server.
 type Handler struct {
@@ -47,5 +59,5 @@ type Netboot struct {
 	Enabled bool
 
 	// UserClass (for network booting) allows a custom DHCP option 77 to be used to break out of an iPXE loop.
-	UserClass UserClass
+	UserClass userClass
 }

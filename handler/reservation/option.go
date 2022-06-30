@@ -15,8 +15,8 @@ import (
 	"inet.af/netaddr"
 )
 
-// UserClass is DHCP option 77 (https://www.rfc-editor.org/rfc/rfc3004.html).
-type UserClass string
+// userClass is DHCP option 77 (https://www.rfc-editor.org/rfc/rfc3004.html).
+type userClass string
 
 // clientType is from DHCP option 60. Normally only PXEClient or HTTPClient.
 type clientType string
@@ -29,20 +29,20 @@ const (
 // known user-class types. must correspond to DHCP option 77 - User-Class
 // https://www.rfc-editor.org/rfc/rfc3004.html
 const (
-	// If the client has had iPXE burned into its ROM (or is a VM
-	// that uses iPXE as the PXE "ROM"), special handling is
-	// needed because in this mode the client is using iPXE native
+	// If the client has had ipxe burned into its ROM (or is a VM
+	// that uses ipxe as the PXE "ROM"), special handling is
+	// needed because in this mode the client is using ipxe native
 	// drivers and chainloading to a UNDI stack won't work.
-	IPXE UserClass = "iPXE"
-	// If the client identifies as "Tinkerbell", we've already
+	ipxe userClass = "iPXE"
+	// If the client identifies as "tinkerbell", we've already
 	// chainloaded this client to the full-featured copy of iPXE
 	// we supply. We have to distinguish this case so we don't
 	// loop on the chainload step.
-	Tinkerbell UserClass = "Tinkerbell"
+	tinkerbell userClass = "Tinkerbell"
 )
 
-// ArchToBootFile maps supported hardware PXE architectures types to iPXE binary files.
-var ArchToBootFile = map[iana.Arch]string{
+// archToBootFile maps supported hardware PXE architectures types to iPXE binary files.
+var archToBootFile = map[iana.Arch]string{
 	iana.INTEL_X86PC:       "undionly.kpxe",
 	iana.NEC_PC98:          "undionly.kpxe",
 	iana.EFI_ITANIUM:       "undionly.kpxe",
@@ -68,7 +68,7 @@ func (c clientType) String() string {
 }
 
 // String function for UserClass.
-func (u UserClass) String() string {
+func (u userClass) String() string {
 	return string(u)
 }
 
@@ -135,12 +135,12 @@ func (h *Handler) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *d
 		d.ServerIPAddr = net.IPv4(0, 0, 0, 0)
 		if n.AllowNetboot {
 			a := arch(m)
-			bin, found := ArchToBootFile[a]
+			bin, found := archToBootFile[a]
 			if !found {
 				h.Log.Error(fmt.Errorf("unable to find bootfile for arch"), "network boot not allowed", "arch", a, "archInt", int(a), "mac", m.ClientHWAddr)
 				return
 			}
-			uClass := UserClass(string(m.GetOneOption(dhcpv4.OptionUserClassInformation)))
+			uClass := userClass(string(m.GetOneOption(dhcpv4.OptionUserClassInformation)))
 			ipxeScript := h.Netboot.IPXEScriptURL
 			if n.IPXEScriptURL != nil {
 				ipxeScript = n.IPXEScriptURL
@@ -161,7 +161,7 @@ func (h *Handler) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *d
 // bootfileAndNextServer returns the bootfile (string) and next server (net.IP).
 // input arguments `tftp`, `ipxe` and `iscript` use non string types so as to attempt to be more clear about the expectation around what is wanted for these values.
 // It also helps us avoid having to validate a string in multiple ways.
-func (h *Handler) bootfileAndNextServer(ctx context.Context, uClass UserClass, opt60, bin string, tftp netaddr.IPPort, ipxe, iscript *url.URL) (string, net.IP) {
+func (h *Handler) bootfileAndNextServer(ctx context.Context, uClass userClass, opt60, bin string, tftp netaddr.IPPort, http, iscript *url.URL) (string, net.IP) {
 	var nextServer net.IP
 	var bootfile string
 	if tp := otelhelpers.TraceparentStringFromContext(ctx); h.OTELEnabled && tp != "" {
@@ -169,20 +169,20 @@ func (h *Handler) bootfileAndNextServer(ctx context.Context, uClass UserClass, o
 	}
 	// If a machine is in an ipxe boot loop, it is likely to be that we aren't matching on IPXE or Tinkerbell userclass (option 77).
 	switch { // order matters here.
-	case uClass == Tinkerbell, (h.Netboot.UserClass != "" && uClass == h.Netboot.UserClass): // this case gets us out of an ipxe boot loop.
+	case uClass == tinkerbell, (h.Netboot.UserClass != "" && uClass == h.Netboot.UserClass): // this case gets us out of an ipxe boot loop.
 		bootfile = "/no-ipxe-script-defined"
 		if iscript != nil {
 			bootfile = iscript.String()
 		}
 	case clientType(opt60) == httpClient: // Check the client type from option 60.
-		bootfile = fmt.Sprintf("%s/%s", ipxe, bin)
-		ns := net.ParseIP(ipxe.Host)
+		bootfile = fmt.Sprintf("%s/%s", http, bin)
+		ns := net.ParseIP(http.Host)
 		if ns == nil {
-			h.Log.Error(fmt.Errorf("unable to parse ipxe host"), "ipxe", ipxe.Host)
+			h.Log.Error(fmt.Errorf("unable to parse ipxe host"), "ipxe", http.Host)
 			ns = net.ParseIP("0.0.0.0")
 		}
 		nextServer = ns
-	case uClass == IPXE: // if the "iPXE" user class is found it means we aren't in our custom version of ipxe, but because of the option 43 we're setting we need to give a full tftp url from which to boot.
+	case uClass == ipxe: // if the "iPXE" user class is found it means we aren't in our custom version of ipxe, but because of the option 43 we're setting we need to give a full tftp url from which to boot.
 		bootfile = fmt.Sprintf("tftp://%v/%v", tftp.String(), bin)
 		nextServer = tftp.UDPAddr().IP
 	default:
