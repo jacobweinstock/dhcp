@@ -5,115 +5,18 @@ import (
 	"net"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/equinix-labs/otel-init-go/otelhelpers"
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/iana"
-	"github.com/insomniacslk/dhcp/rfc1035label"
 	"github.com/tinkerbell/dhcp/data"
 	oteldhcp "github.com/tinkerbell/dhcp/otel"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"inet.af/netaddr"
 )
-
-func TestSetDHCPOpts(t *testing.T) {
-	type args struct {
-		in0 context.Context
-		m   *dhcpv4.DHCPv4
-		d   *data.DHCP
-	}
-	tests := map[string]struct {
-		server Handler
-		args   args
-		want   *dhcpv4.DHCPv4
-	}{
-		"success": {
-			server: Handler{Log: logr.Discard()},
-			args: args{
-				in0: context.Background(),
-				m:   &dhcpv4.DHCPv4{Options: dhcpv4.OptionsFromList(dhcpv4.OptParameterRequestList(dhcpv4.OptionSubnetMask))},
-				d: &data.DHCP{
-					MACAddress:     net.HardwareAddr{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-					IPAddress:      netaddr.IPv4(192, 168, 4, 4),
-					SubnetMask:     []byte{255, 255, 255, 0},
-					DefaultGateway: netaddr.IPv4(192, 168, 4, 1),
-					NameServers: []net.IP{
-						{8, 8, 8, 8},
-						{8, 8, 4, 4},
-					},
-					Hostname:         "test-server",
-					DomainName:       "mynet.local",
-					BroadcastAddress: netaddr.IPv4(192, 168, 4, 255),
-					NTPServers: []net.IP{
-						{132, 163, 96, 2},
-						{132, 163, 96, 3},
-					},
-					LeaseTime: 84600,
-					DomainSearch: []string{
-						"mynet.local",
-					},
-				},
-			},
-			want: &dhcpv4.DHCPv4{
-				OpCode:        dhcpv4.OpcodeBootRequest,
-				HWType:        iana.HWTypeEthernet,
-				ClientHWAddr:  net.HardwareAddr{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-				ClientIPAddr:  []byte{0, 0, 0, 0},
-				YourIPAddr:    []byte{192, 168, 4, 4},
-				ServerIPAddr:  []byte{0, 0, 0, 0},
-				GatewayIPAddr: []byte{0, 0, 0, 0},
-				Options: dhcpv4.OptionsFromList(
-					dhcpv4.OptSubnetMask(net.IPMask{255, 255, 255, 0}),
-					dhcpv4.OptBroadcastAddress(net.IP{192, 168, 4, 255}),
-					dhcpv4.OptIPAddressLeaseTime(time.Duration(84600)*time.Second),
-					dhcpv4.OptDomainName("mynet.local"),
-					dhcpv4.OptHostName("test-server"),
-					dhcpv4.OptRouter(net.IP{192, 168, 4, 1}),
-					dhcpv4.OptDNS([]net.IP{
-						{8, 8, 8, 8},
-						{8, 8, 4, 4},
-					}...),
-					dhcpv4.OptNTPServers([]net.IP{
-						{132, 163, 96, 2},
-						{132, 163, 96, 3},
-					}...),
-					dhcpv4.OptDomainSearch(&rfc1035label.Labels{
-						Labels: []string{"mynet.local"},
-					}),
-				),
-			},
-		},
-	}
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			s := &Handler{
-				Log: tt.server.Log,
-				Netboot: Netboot{
-					IPXEBinServerTFTP: tt.server.Netboot.IPXEBinServerTFTP,
-					IPXEBinServerHTTP: tt.server.Netboot.IPXEBinServerHTTP,
-					IPXEScriptURL:     tt.server.Netboot.IPXEScriptURL,
-					Enabled:           tt.server.Netboot.Enabled,
-					UserClass:         tt.server.Netboot.UserClass,
-				},
-				IPAddr:  tt.server.IPAddr,
-				Backend: tt.server.Backend,
-			}
-			mods := s.setDHCPOpts(tt.args.in0, tt.args.m, tt.args.d)
-			finalPkt, err := dhcpv4.New(mods...)
-			if err != nil {
-				t.Fatalf("setDHCPOpts() error = %v, wantErr nil", err)
-			}
-			if diff := cmp.Diff(tt.want, finalPkt, cmpopts.IgnoreFields(dhcpv4.DHCPv4{}, "TransactionID")); diff != "" {
-				t.Fatal(diff)
-			}
-		})
-	}
-}
 
 func TestArch(t *testing.T) {
 	tests := map[string]struct {

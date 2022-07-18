@@ -1,5 +1,5 @@
 ---
-08:00:27:29:4E:67:
+dc:a6:32:ff:65:32:
   ipAddress: '192.168.2.153'
   subnetMask: '255.255.255.0'
   defaultGateway: '192.168.2.1'
@@ -7,21 +7,40 @@
   - '8.8.8.8'
   - '1.1.1.1'
   hostname: 'pxe-virtualbox'
-  domainName: 'example.com'
+  domainName: 'weinstocklabs.com'
   broadcastAddress: '192.168.2.255'
-  ntpServers:
-  - '132.163.96.2'
-  - '132.163.96.3'
+  #ntpServers:
+  #- '132.163.96.2'
+  #- '132.163.96.3'
   leaseTime: 86400
-  domainSearch:
-  - 'example.com'
+  #domainSearch:
+  #- 'example.com'
   netboot:
     allowPxe: true
-    ipxeScriptUrl: 'https://boot.netboot.xyz'
-52:54:00:aa:88:2a:
-  ipAddress: '192.168.2.15'
+    ipxeScriptUrl: 'http://192.168.2.160:9090/auto.ipxe'
+08:00:27:29:4e:67:
+  ipAddress: '192.168.2.153'
   subnetMask: '255.255.255.0'
   defaultGateway: '192.168.2.1'
+  nameServers:
+  - '8.8.8.8'
+  - '1.1.1.1'
+  hostname: 'pxe-virtualbox'
+  domainName: 'weinstocklabs.com'
+  broadcastAddress: '192.168.2.255'
+  #ntpServers:
+  #- '132.163.96.2'
+  #- '132.163.96.3'
+  leaseTime: 86400
+  #domainSearch:
+  #- 'example.com'
+  netboot:
+    allowPxe: true
+    ipxeScriptUrl: 'http://192.168.2.160:9090/auto.ipxe'
+08:00:27:9e:f5:3b:
+  ipAddress: '192.168.1.15'
+  subnetMask: '255.255.255.0'
+  defaultGateway: '192.168.1.1'
   nameServers:
   - '8.8.8.8'
   - '1.1.1.1'
@@ -36,7 +55,7 @@
   - 'example.com'
   netboot:
     allowPxe: true
-    ipxeScriptUrl: 'https://boot.netboot.xyz'
+    #ipxeScriptUrl: 'http://boot.netboot.xyz'
 86:96:b0:6e:ca:36:
   ipAddress: '192.168.2.158'
   subnetMask: '255.255.255.0'

@@ -18,7 +18,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const tracerName = "github.com/tinkerbell/dhcp/server"
+const tracerName = "github.com/tinkerbell/dhcp/reservation"
 
 // BackendReader is the interface that wraps the Read method.
 //
@@ -139,7 +139,7 @@ func (h *Handler) updateMsg(ctx context.Context, pkt *dhcpv4.DHCPv4, d *data.DHC
 		dhcpv4.WithGeneric(dhcpv4.OptionServerIdentifier, h.IPAddr.IPAddr().IP),
 		dhcpv4.WithServerIP(h.IPAddr.IPAddr().IP),
 	}
-	mods = append(mods, h.setDHCPOpts(ctx, pkt, d)...)
+	mods = append(mods, d.ToDHCPMods()...)
 
 	if h.Netboot.Enabled && h.isNetbootClient(pkt) {
 		mods = append(mods, h.setNetworkBootOpts(ctx, pkt, n))

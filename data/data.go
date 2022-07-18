@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/insomniacslk/dhcp/dhcpv4"
 	"go.opentelemetry.io/otel/attribute"
 	"inet.af/netaddr"
 )
@@ -30,6 +31,44 @@ type DHCP struct {
 type Netboot struct {
 	AllowNetboot  bool     // If true, the client will be provided netboot options in the DHCP offer/ack.
 	IPXEScriptURL *url.URL // Overrides a default value that is passed into DHCP on startup.
+}
+
+// ToDHCPMods translates a DHCP struct to a slice of DHCP packet modifiers.
+// Only non zero values are added to the modifiers slice.
+func (d *DHCP) ToDHCPMods() []dhcpv4.Modifier {
+	mods := []dhcpv4.Modifier{
+		dhcpv4.WithHwAddr(d.MACAddress),
+		dhcpv4.WithLeaseTime(d.LeaseTime),
+	}
+	if !d.IPAddress.IsZero() {
+		mods = append(mods, dhcpv4.WithYourIP(d.IPAddress.IPAddr().IP))
+	}
+	if len(d.NameServers) > 0 {
+		mods = append(mods, dhcpv4.WithDNS(d.NameServers...))
+	}
+	if len(d.DomainSearch) > 0 {
+		mods = append(mods, dhcpv4.WithDomainSearchList(d.DomainSearch...))
+	}
+	if len(d.NTPServers) > 0 {
+		mods = append(mods, dhcpv4.WithOption(dhcpv4.OptNTPServers(d.NTPServers...)))
+	}
+	if !d.BroadcastAddress.IsZero() {
+		mods = append(mods, dhcpv4.WithGeneric(dhcpv4.OptionBroadcastAddress, d.BroadcastAddress.IPAddr().IP))
+	}
+	if d.DomainName != "" {
+		mods = append(mods, dhcpv4.WithGeneric(dhcpv4.OptionDomainName, []byte(d.DomainName)))
+	}
+	if d.Hostname != "" {
+		mods = append(mods, dhcpv4.WithGeneric(dhcpv4.OptionHostName, []byte(d.Hostname)))
+	}
+	if len(d.SubnetMask) > 0 {
+		mods = append(mods, dhcpv4.WithNetmask(d.SubnetMask))
+	}
+	if !d.DefaultGateway.IsZero() {
+		mods = append(mods, dhcpv4.WithRouter(d.DefaultGateway.IPAddr().IP))
+	}
+
+	return mods
 }
 
 // EncodeToAttributes returns a slice of opentelemetry attributes that can be used to set span.SetAttributes.

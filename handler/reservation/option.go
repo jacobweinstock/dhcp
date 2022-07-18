@@ -12,6 +12,7 @@ import (
 	"github.com/insomniacslk/dhcp/iana"
 	"github.com/tinkerbell/dhcp/data"
 	"github.com/tinkerbell/dhcp/otel"
+	"github.com/tinkerbell/dhcp/rpi"
 	"inet.af/netaddr"
 )
 
@@ -72,42 +73,6 @@ func (u UserClass) String() string {
 	return string(u)
 }
 
-// setDHCPOpts takes a client dhcp packet and data (typically from a backend) and creates a slice of DHCP packet modifiers.
-// m is the DHCP request from a client. d is the data to use to create the DHCP packet modifiers.
-// This is most likely the place where we would have any business logic for determining DHCP option setting.
-func (h *Handler) setDHCPOpts(_ context.Context, _ *dhcpv4.DHCPv4, d *data.DHCP) []dhcpv4.Modifier {
-	mods := []dhcpv4.Modifier{
-		dhcpv4.WithLeaseTime(d.LeaseTime),
-		dhcpv4.WithYourIP(d.IPAddress.IPAddr().IP),
-	}
-	if len(d.NameServers) > 0 {
-		mods = append(mods, dhcpv4.WithDNS(d.NameServers...))
-	}
-	if len(d.DomainSearch) > 0 {
-		mods = append(mods, dhcpv4.WithDomainSearchList(d.DomainSearch...))
-	}
-	if len(d.NTPServers) > 0 {
-		mods = append(mods, dhcpv4.WithOption(dhcpv4.OptNTPServers(d.NTPServers...)))
-	}
-	if !d.BroadcastAddress.IsZero() {
-		mods = append(mods, dhcpv4.WithGeneric(dhcpv4.OptionBroadcastAddress, d.BroadcastAddress.IPAddr().IP))
-	}
-	if d.DomainName != "" {
-		mods = append(mods, dhcpv4.WithGeneric(dhcpv4.OptionDomainName, []byte(d.DomainName)))
-	}
-	if d.Hostname != "" {
-		mods = append(mods, dhcpv4.WithGeneric(dhcpv4.OptionHostName, []byte(d.Hostname)))
-	}
-	if len(d.SubnetMask) > 0 {
-		mods = append(mods, dhcpv4.WithNetmask(d.SubnetMask))
-	}
-	if !d.DefaultGateway.IsZero() {
-		mods = append(mods, dhcpv4.WithRouter(d.DefaultGateway.IPAddr().IP))
-	}
-
-	return mods
-}
-
 // setNetworkBootOpts purpose is to sets 3 or 4 values. 2 DHCP headers, option 43 and optionally option (60).
 // These headers and options are returned as a dhcvp4.Modifier that can be used to modify a dhcp response.
 // github.com/insomniacslk/dhcp uses this method to simplify packet manipulation.
@@ -151,6 +116,10 @@ func (h *Handler) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *d
 				6:  []byte{8},
 				69: otel.TraceparentFromContext(ctx),
 			}
+			if rpi.IsRPI(m.ClientHWAddr) {
+				rpi.AddVendorOpts(pxe)
+			}
+
 			d.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation, pxe.ToBytes()))
 		}
 	}
@@ -200,13 +169,15 @@ func arch(d *dhcpv4.DHCPv4) iana.Arch {
 	if len(fwt) == 0 {
 		return iana.Arch(255) // unknown arch
 	}
+	if rpi.IsRPI(d.ClientHWAddr) {
+		return iana.Arch(41) // rpi
+	}
 	var archKnown bool
 	var a iana.Arch
 	for _, elem := range fwt {
 		if !strings.Contains(elem.String(), "unknown") {
 			archKnown = true
-			// Basic architecture identification, based purely on
-			// the PXE architecture option.
+			// Basic architecture identification, based purely on the PXE architecture option.
 			// https://www.iana.org/assignments/dhcpv6-parameters/dhcpv6-parameters.xhtml#processor-architecture
 			a = elem
 			break

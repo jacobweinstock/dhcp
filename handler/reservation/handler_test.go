@@ -300,7 +300,7 @@ func TestUpdateMsg(t *testing.T) {
 						dhcpv4.OptMessageType(dhcpv4.MessageTypeDiscover),
 					),
 				},
-				data:    &data.DHCP{IPAddress: netaddr.IPv4(192, 168, 1, 100), SubnetMask: net.IP{255, 255, 255, 0}.DefaultMask()},
+				data:    &data.DHCP{MACAddress: []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06}, IPAddress: netaddr.IPv4(192, 168, 1, 100), SubnetMask: net.IP{255, 255, 255, 0}.DefaultMask()},
 				netboot: &data.Netboot{AllowNetboot: true, IPXEScriptURL: &url.URL{Scheme: "http", Host: "localhost:8181", Path: "auto.ipxe"}},
 				msg:     dhcpv4.MessageTypeDiscover,
 			},
@@ -340,6 +340,8 @@ func TestUpdateMsg(t *testing.T) {
 			}
 			got := s.updateMsg(context.Background(), tt.args.m, tt.args.data, tt.args.netboot, tt.args.msg)
 			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(dhcpv4.DHCPv4{})); diff != "" {
+				t.Logf("got: %+v", got)
+				t.Logf("want: %+v", tt.want)
 				t.Fatal(diff)
 			}
 		})
