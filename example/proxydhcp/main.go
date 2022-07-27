@@ -34,15 +34,21 @@ func main() {
 		panic(err)
 	}
 
-	handler := &proxy.Handler{
-		Log:    l.WithValues("port", "67"),
-		IPAddr: netaddr.IPv4(192, 168, 1, 94),
+	proxyHandler := &proxy.Handler{
+		Log:    l.WithValues("handler", "proxy"),
+		IPAddr: netaddr.IPv4(192, 168, 2, 221),
 		Netboot: proxy.Netboot{
-			IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 1, 94), 69),
-			IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.1.94:8080"},
-			IPXEScriptURL:     &url.URL{Scheme: "http", Host: "192.168.1.94:9090", Path: "/auto.ipxe"},
+			IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 221), 69),
+			IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.2.221:8080"},
+			IPXEScriptURL:     &url.URL{Scheme: "http", Host: "192.168.2.221:9090", Path: "/auto.ipxe"},
 			Enabled:           true,
 		},
+		OTELEnabled: true,
+		Backend:     backend,
+	}
+	reservationHandler := &reservation.Handler{
+		Log:         l.WithValues("handler", "reservation"),
+		IPAddr:      netaddr.IPv4(192, 168, 2, 221),
 		OTELEnabled: true,
 		Backend:     backend,
 	}
@@ -51,22 +57,8 @@ func main() {
 		<-ctx.Done()
 		l.Error(listener.Shutdown(), "shutting down server")
 	}()
-	l.Info("starting server", "addr", handler.IPAddr)
-	h2 := &proxy.Handler{
-		Log:    l.WithValues("port", "4011"),
-		IPAddr: netaddr.IPv4(192, 168, 1, 94),
-		Netboot: proxy.Netboot{
-			IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 1, 94), 69),
-			IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.1.94:8080"},
-			IPXEScriptURL:     &url.URL{Scheme: "http", Host: "192.168.1.94:9090", Path: "/auto.ipxe"},
-			Enabled:           true,
-		},
-		OTELEnabled: true,
-		Backend:     backend,
-	}
-	fourtyEleven := &dhcp.Listener{Addr: netaddr.IPPortFrom(netaddr.IPv4(0, 0, 0, 0), 4011)}
-	go fourtyEleven.ListenAndServe(h2)
-	l.Error(listener.ListenAndServe(handler), "done")
+	l.Info("starting server", "proxyHandler", proxyHandler.IPAddr, "reservationHandler", reservationHandler.IPAddr)
+	l.Error(listener.ListenAndServe(proxyHandler, reservationHandler), "done")
 	l.Info("done")
 }
 

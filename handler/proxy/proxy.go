@@ -183,7 +183,7 @@ func (h *Handler) Handle(conn net.PacketConn, peer net.Addr, pkt *dhcpv4.DHCPv4)
 		return
 	}
 	log.Info("sent DHCP response")
-	fmt.Println(reply.SummaryWithVendor(nil))
+	// fmt.Println(reply.SummaryWithVendor(nil))
 	span.SetAttributes(h.encodeToAttributes(reply, "reply")...)
 	span.SetStatus(codes.Ok, "sent DHCP response")
 }
@@ -198,7 +198,7 @@ func (h *Handler) readBackend(ctx context.Context, mac net.HardwareAddr) (*data.
 
 	d, n, err := h.Backend.Read(ctx, mac)
 	if err != nil {
-		h.Log.Info("error getting DHCP data from backend", "mac", mac, "error", err)
+		h.Log.Error(err, "error getting DHCP data from backend", "mac", mac.String())
 		span.SetStatus(codes.Error, err.Error())
 
 		return nil, nil, err
@@ -213,7 +213,6 @@ func (h *Handler) readBackend(ctx context.Context, mac net.HardwareAddr) (*data.
 
 // updateMsg handles updating DHCP packets with the data from the backend.
 func (h *Handler) updateMsg(ctx context.Context, pkt *dhcpv4.DHCPv4, d *data.DHCP, n *data.Netboot, msgType dhcpv4.MessageType) *dhcpv4.DHCPv4 {
-	h.setDefaults()
 	mods := []dhcpv4.Modifier{
 		dhcpv4.WithMessageType(msgType),
 		dhcpv4.WithGeneric(dhcpv4.OptionServerIdentifier, h.IPAddr.IPAddr().IP),
@@ -305,7 +304,7 @@ func (h *Handler) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *d
 		d.ServerIPAddr = net.IPv4(0, 0, 0, 0)
 		if n.AllowNetboot {
 			a := arch(m)
-			h.Log.Info("debug", "arch:", a)
+			// h.Log.Info("debug", "arch:", a)
 			bin, found := ArchToBootFile[a]
 			if !found {
 				h.Log.Error(fmt.Errorf("unable to find bootfile for arch"), "network boot not allowed", "arch", a, "archInt", int(a), "mac", m.ClientHWAddr)
@@ -325,9 +324,9 @@ func (h *Handler) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *d
 			if d.BootFileName == ipxeScript.String() {
 				//d.ServerHostName = ""
 			}
-			h.Log.Info("debug", "len", len(oteldhcp.TraceparentFromContext(ctx)), "43_69_byte", oteldhcp.TraceparentFromContext(ctx), "43_69_string", string(oteldhcp.TraceparentFromContext(ctx)))
+			//h.Log.Info("debug", "len", len(oteldhcp.TraceparentFromContext(ctx)), "43_69_byte", oteldhcp.TraceparentFromContext(ctx), "43_69_string", string(oteldhcp.TraceparentFromContext(ctx)))
 			if rpi.IsRPI(m.ClientHWAddr) {
-				h.Log.Info("is Raspberry Pi")
+				h.Log.Info("this is a Raspberry Pi", "mac", m.ClientHWAddr)
 				rpi.AddVendorOpts(pxe)
 			}
 
@@ -372,10 +371,12 @@ func (h *Handler) bootfileAndNextServer(ctx context.Context, uClass UserClass, o
 		nextServer = tftp.UDPAddr().IP
 	}
 
-	h.Log.Info("===============")
-	h.Log.Info("debug", "bootfile:", bootfile)
-	h.Log.Info("debug", "nextServer:", nextServer)
-	h.Log.Info("===============")
+	/*
+		h.Log.Info("===============")
+		h.Log.Info("debug", "bootfile:", bootfile)
+		h.Log.Info("debug", "nextServer:", nextServer)
+		h.Log.Info("===============")
+	*/
 
 	return bootfile, nextServer
 }
