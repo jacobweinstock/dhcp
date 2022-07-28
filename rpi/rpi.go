@@ -17,8 +17,9 @@ func IsRPI(hw net.HardwareAddr) bool {
 	// come with that. See https://udger.com/resources/mac-address-vendor-detail?name=raspberry_pi_foundation.
 	// TODO:(jacobweinstock) look into using OPT97 to detect if a request is from a Raspberry Pi.
 	// see https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#DHCP_OPTION97.
-	switch strings.ToLower(hw.String()) {
-	case "28:cd:c1", "b8:27:eb", "dc:a6:32", "e4:5f:01":
+	h := strings.ToLower(hw.String())
+	switch {
+	case strings.HasPrefix(h, "28:cd:c1"), strings.HasPrefix(h, "b8:27:eb"), strings.HasPrefix(h, "dc:a6:32"), strings.HasPrefix(h, "e4:5f:01"):
 		return true
 	}
 

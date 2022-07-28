@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/tinkerbell/dhcp/backend/noop"
 	"github.com/tinkerbell/dhcp/data"
+	"github.com/tinkerbell/dhcp/handler/option"
 	oteldhcp "github.com/tinkerbell/dhcp/otel"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -141,8 +141,10 @@ func (h *Handler) updateMsg(ctx context.Context, pkt *dhcpv4.DHCPv4, d *data.DHC
 	}
 	mods = append(mods, d.ToDHCPMods()...)
 
-	if h.Netboot.Enabled && h.isNetbootClient(pkt) {
-		mods = append(mods, h.setNetworkBootOpts(ctx, pkt, n))
+	if h.Netboot.Enabled {
+		if err := option.IsNetbootClient(pkt); err == nil {
+			mods = append(mods, h.setNetworkBootOpts(ctx, pkt, n))
+		}
 	}
 	reply, err := dhcpv4.NewReplyFromRequest(pkt, mods...)
 	if err != nil {
@@ -150,67 +152,6 @@ func (h *Handler) updateMsg(ctx context.Context, pkt *dhcpv4.DHCPv4, d *data.DHC
 	}
 
 	return reply
-}
-
-// isNetbootClient returns true if the client is a valid netboot client.
-// A valid netboot client will have the following in its DHCP request:
-// http://www.pix.net/software/pxeboot/archive/pxespec.pdf
-//
-// 1. is a DHCP discovery/request message type.
-// 2. option 93 is set.
-// 3. option 94 is set.
-// 4. option 97 is correct length.
-// 5. option 60 is set with this format: "PXEClient:Arch:xxxxx:UNDI:yyyzzz" or "HTTPClient:Arch:xxxxx:UNDI:yyyzzz".
-func (h *Handler) isNetbootClient(pkt *dhcpv4.DHCPv4) bool {
-	h.setDefaults()
-	// only response to DISCOVER and REQUEST packets
-	if pkt.MessageType() != dhcpv4.MessageTypeDiscover && pkt.MessageType() != dhcpv4.MessageTypeRequest {
-		h.Log.Info("not a netboot client", "reason", "message type must be either Discover or Request", "mac", pkt.ClientHWAddr.String(), "message type", pkt.MessageType())
-		return false
-	}
-	// option 60 must be set
-	if !pkt.Options.Has(dhcpv4.OptionClassIdentifier) {
-		h.Log.Info("not a netboot client", "reason", "option 60 not set", "mac", pkt.ClientHWAddr.String())
-		return false
-	}
-	// option 60 must start with PXEClient or HTTPClient
-	opt60 := pkt.GetOneOption(dhcpv4.OptionClassIdentifier)
-	if !strings.HasPrefix(string(opt60), string(pxeClient)) && !strings.HasPrefix(string(opt60), string(httpClient)) {
-		h.Log.Info("not a netboot client", "reason", "option 60 not PXEClient or HTTPClient", "mac", pkt.ClientHWAddr.String(), "option 60", string(opt60))
-		return false
-	}
-
-	// option 93 must be set
-	if !pkt.Options.Has(dhcpv4.OptionClientSystemArchitectureType) {
-		h.Log.Info("not a netboot client", "reason", "option 93 not set", "mac", pkt.ClientHWAddr.String())
-		return false
-	}
-
-	// option 94 must be set
-	if !pkt.Options.Has(dhcpv4.OptionClientNetworkInterfaceIdentifier) {
-		h.Log.Info("not a netboot client", "reason", "option 94 not set", "mac", pkt.ClientHWAddr.String())
-		return false
-	}
-
-	// option 97 must be have correct length or not be set
-	guid := pkt.GetOneOption(dhcpv4.OptionClientMachineIdentifier)
-	switch len(guid) {
-	case 0:
-		// A missing GUID is invalid according to the spec, however
-		// there are PXE ROMs in the wild that omit the GUID and still
-		// expect to boot. The only thing we do with the GUID is
-		// mirror it back to the client if it's there, so we might as
-		// well accept these buggy ROMs.
-	case 17:
-		if guid[0] != 0 {
-			h.Log.Info("not a netboot client", "reason", "option 97 does not start with 0", "mac", pkt.ClientHWAddr.String(), "option 97", string(guid))
-			return false
-		}
-	default:
-		h.Log.Info("not a netboot client", "reason", "option 97 has invalid length (0 or 17)", "mac", pkt.ClientHWAddr.String(), "option 97", string(guid))
-		return false
-	}
-	return true
 }
 
 // encodeToAttributes takes a DHCP packet and returns opentelemetry key/value attributes.

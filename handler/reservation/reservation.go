@@ -5,6 +5,7 @@ import (
 	"net/url"
 
 	"github.com/go-logr/logr"
+	"github.com/tinkerbell/dhcp/handler/option"
 	"inet.af/netaddr"
 )
 
@@ -47,5 +48,5 @@ type Netboot struct {
 	Enabled bool
 
 	// UserClass (for network booting) allows a custom DHCP option 77 to be used to break out of an iPXE loop.
-	UserClass UserClass
+	UserClass option.UserClass
 }

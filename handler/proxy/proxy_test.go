@@ -9,6 +9,7 @@ import (
 )
 
 func TestXxx(t *testing.T) {
+	t.Skip()
 	ls, err := reuseport.ListenPacket("udp", ":67")
 	if err != nil {
 		t.Fatal(err)
