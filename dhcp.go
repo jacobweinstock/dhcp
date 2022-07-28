@@ -11,6 +11,7 @@ import (
 	"github.com/imdario/mergo"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv4/server4"
+	"github.com/libp2p/go-reuseport"
 	"github.com/tinkerbell/dhcp/handler/noop"
 	"inet.af/netaddr"
 )
@@ -26,10 +27,11 @@ func (e *noConnError) Error() string {
 
 // Listener is a DHCPv4 server.
 type Listener struct {
-	Addr     netaddr.IPPort
-	srvMu    sync.Mutex
-	srv      *server4.Server
-	handlers []Handler
+	Addr      netaddr.IPPort
+	Reuseport bool
+	srvMu     sync.Mutex
+	srv       *server4.Server
+	handlers  []Handler
 }
 
 // Handler is the interface is responsible for responding to DHCP messages.
@@ -87,13 +89,24 @@ func (l *Listener) ListenAndServe(h ...Handler) error {
 		return fmt.Errorf("failed to merge defaults: %w", err)
 	}
 
-	addr := &net.UDPAddr{
-		IP:   l.Addr.UDPAddr().IP,
-		Port: l.Addr.UDPAddr().Port,
-	}
-	conn, err := server4.NewIPv4UDPConn("", addr)
-	if err != nil {
-		return fmt.Errorf("failed to create udp connection: %w", err)
+	var conn net.PacketConn
+	if l.Reuseport {
+		var err error
+		conn, err = reuseport.ListenPacket("udp4", l.Addr.UDPAddr().AddrPort().String())
+		if err != nil {
+			return fmt.Errorf("failed to create udp listener: %w", err)
+		}
+	} else {
+		addr := &net.UDPAddr{
+			IP:   l.Addr.UDPAddr().IP,
+			Port: l.Addr.UDPAddr().Port,
+		}
+
+		var err error
+		conn, err = server4.NewIPv4UDPConn("", addr)
+		if err != nil {
+			return fmt.Errorf("failed to create udp connection: %w", err)
+		}
 	}
 
 	return l.Serve(conn)

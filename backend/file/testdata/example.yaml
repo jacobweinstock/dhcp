@@ -1,5 +1,5 @@
 ---
-dc:a6:32:ff:65:32:
+08:00:27:9e:f5:3a:
   ipAddress: '192.168.2.153'
   subnetMask: '255.255.255.0'
   defaultGateway: '192.168.2.1'
@@ -17,7 +17,8 @@ dc:a6:32:ff:65:32:
   #- 'example.com'
   netboot:
     allowPxe: true
-    ipxeScriptUrl: 'http://192.168.2.160:9090/auto.ipxe'
+    #ipxeScriptUrl: 'http://192.168.2.160:9090/auto.ipxe'
+    ipxeScriptUrl: 'http://boot.netboot.xyz'
 08:00:27:29:4e:67:
   ipAddress: '192.168.2.153'
   subnetMask: '255.255.255.0'

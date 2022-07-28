@@ -69,12 +69,14 @@ type Netboot struct {
 }
 
 // machine describes a device that is requesting a network boot.
+/*
 type machine struct {
 	mac    net.HardwareAddr
 	arch   iana.Arch
 	uClass UserClass
 	cType  clientType
 }
+*/
 
 // BackendReader is the interface that wraps the Read method.
 //
@@ -93,6 +95,29 @@ func (h *Handler) setDefaults() {
 	}
 	if h.Log.GetSink() == nil {
 		h.Log = logr.Discard()
+	}
+}
+
+func (h *Handler) handleMsg(ctx context.Context, mac net.HardwareAddr, input *dhcpv4.DHCPv4, mt dhcpv4.MessageType) (*dhcpv4.DHCPv4, error) {
+	d, n, err := h.readBackend(ctx, mac)
+	if err != nil {
+		h.Log.Error(err, "error reading from backend")
+
+		return nil, err
+	}
+
+	if h.Netboot.Enabled && n.AllowNetboot {
+		if err := h.isNetbootClient(input); err != nil {
+			h.Log.Error(err, "not a netboot client.")
+
+			return nil, err
+		}
+		return h.updateMsg(ctx, input, d, n, mt), nil
+	} else {
+		msg := "netboot is not enabled or the client is not allowed to netboot"
+		h.Log.V(1).Info(msg, "netboot", h.Netboot.Enabled, "allowNetboot", n.AllowNetboot, "isNetbootClient", h.isNetbootClient(input))
+
+		return nil, errors.New(msg)
 	}
 }
 
@@ -116,47 +141,17 @@ func (h *Handler) Handle(conn net.PacketConn, peer net.Addr, pkt *dhcpv4.DHCPv4)
 	var reply *dhcpv4.DHCPv4
 	switch mt := pkt.MessageType(); mt {
 	case dhcpv4.MessageTypeDiscover:
-		d, n, err := h.readBackend(ctx, pkt.ClientHWAddr)
+		var err error
+		reply, err = h.handleMsg(ctx, pkt.ClientHWAddr, pkt, dhcpv4.MessageTypeOffer)
 		if err != nil {
-			log.Error(err, "error reading from backend")
-			span.SetStatus(codes.Error, err.Error())
-
-			return
-		}
-
-		if h.Netboot.Enabled && n.AllowNetboot {
-			if err := h.isNetbootClient(pkt); err != nil {
-				log.Error(err, "not a netboot client.")
-				return
-			}
-			reply = h.updateMsg(ctx, pkt, d, n, dhcpv4.MessageTypeOffer)
-			log = log.WithValues("type", dhcpv4.MessageTypeOffer.String())
-		} else {
-			msg := "netboot is not enabled or the client is not allowed to netboot"
-			h.Log.V(1).Info(msg, "netboot", h.Netboot.Enabled, "allowNetboot", n.AllowNetboot, "isNetbootClient", h.isNetbootClient(pkt))
-			span.SetStatus(codes.Error, msg)
-
 			return
 		}
 	case dhcpv4.MessageTypeRequest:
-		d, n, err := h.readBackend(ctx, pkt.ClientHWAddr)
+		var err error
+		reply, err = h.handleMsg(ctx, pkt.ClientHWAddr, pkt, dhcpv4.MessageTypeAck)
 		if err != nil {
-			log.Error(err, "error reading from backend")
+			span.SetAttributes(attribute.String("error", err.Error()))
 			span.SetStatus(codes.Error, err.Error())
-
-			return
-		}
-		if h.Netboot.Enabled && n.AllowNetboot {
-			if err := h.isNetbootClient(pkt); err != nil {
-				log.Error(err, "not a netboot client.")
-				return
-			}
-			reply = h.updateMsg(ctx, pkt, d, n, dhcpv4.MessageTypeAck)
-			log = log.WithValues("type", dhcpv4.MessageTypeAck.String())
-		} else {
-			msg := "netboot is not enabled or the client is not allowed to netboot"
-			h.Log.V(1).Info(msg, "netboot", h.Netboot.Enabled, "allowNetboot", n.AllowNetboot, "isNetbootClient", h.isNetbootClient(pkt))
-			span.SetStatus(codes.Error, msg)
 
 			return
 		}
@@ -165,12 +160,13 @@ func (h *Handler) Handle(conn net.PacketConn, peer net.Addr, pkt *dhcpv4.DHCPv4)
 		// Host reservations, when a client releases an address, the server
 		// doesn't have anything to do. This case is included for clarity of this
 		// design decision.
-		log.Info("received release, no response required")
-		span.SetStatus(codes.Ok, "received release, no response required")
+		log.Info("received release message, no response required")
+		span.SetStatus(codes.Ok, "received release message, no response required")
 
 		return
 	default:
-		log.Info("received unknown message type")
+		log.Info("received unknown/unsupported message type", "type", mt.String())
+		span.SetAttributes(attribute.String("type", mt.String()))
 		span.SetStatus(codes.Error, "received unknown message type")
 
 		return
@@ -183,7 +179,6 @@ func (h *Handler) Handle(conn net.PacketConn, peer net.Addr, pkt *dhcpv4.DHCPv4)
 		return
 	}
 	log.Info("sent DHCP response")
-	// fmt.Println(reply.SummaryWithVendor(nil))
 	span.SetAttributes(h.encodeToAttributes(reply, "reply")...)
 	span.SetStatus(codes.Ok, "sent DHCP response")
 }

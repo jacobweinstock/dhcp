@@ -34,31 +34,40 @@ func main() {
 		panic(err)
 	}
 
-	proxyHandler := &proxy.Handler{
-		Log:    l.WithValues("handler", "proxy"),
-		IPAddr: netaddr.IPv4(192, 168, 2, 221),
-		Netboot: proxy.Netboot{
-			IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 221), 69),
-			IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.2.221:8080"},
-			IPXEScriptURL:     &url.URL{Scheme: "http", Host: "192.168.2.221:9090", Path: "/auto.ipxe"},
-			Enabled:           true,
-		},
-		OTELEnabled: true,
-		Backend:     backend,
-	}
-	reservationHandler := &reservation.Handler{
-		Log:         l.WithValues("handler", "reservation"),
-		IPAddr:      netaddr.IPv4(192, 168, 2, 221),
-		OTELEnabled: true,
-		Backend:     backend,
-	}
-	listener := &dhcp.Listener{Addr: netaddr.IPPortFrom(netaddr.IPv4(0, 0, 0, 0), 67)}
+	listener := &dhcp.Listener{Addr: netaddr.IPPortFrom(netaddr.IPv4(0, 0, 0, 0), 67), Reuseport: true}
+	listener2 := &dhcp.Listener{Addr: netaddr.IPPortFrom(netaddr.IPv4(0, 0, 0, 0), 67), Reuseport: true}
+
 	go func() {
-		<-ctx.Done()
-		l.Error(listener.Shutdown(), "shutting down server")
+		reservationHandler := &reservation.Handler{
+			Log:         l.WithValues("handler", "reservation"),
+			IPAddr:      netaddr.IPv4(192, 168, 2, 221),
+			OTELEnabled: true,
+			Backend:     backend,
+		}
+		l.Info("starting server", "handler", "reservationHandler", "addr", listener.Addr)
+		l.Error(listener.ListenAndServe(reservationHandler), "done")
 	}()
-	l.Info("starting server", "proxyHandler", proxyHandler.IPAddr, "reservationHandler", reservationHandler.IPAddr)
-	l.Error(listener.ListenAndServe(proxyHandler, reservationHandler), "done")
+	go func() {
+		proxyHandler := &proxy.Handler{
+			Log:    l.WithValues("handler", "proxy"),
+			IPAddr: netaddr.IPv4(192, 168, 2, 221),
+			Netboot: proxy.Netboot{
+				IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 221), 69),
+				IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.2.221:8080"},
+				IPXEScriptURL:     &url.URL{Scheme: "http", Host: "192.168.2.221:9090", Path: "/auto.ipxe"},
+				Enabled:           true,
+			},
+			OTELEnabled: true,
+			Backend:     backend,
+		}
+		l.Info("starting server", "handler", "proxyHandler", "addr", listener2.Addr)
+		l.Error(listener2.ListenAndServe(proxyHandler), "done")
+	}()
+
+	<-ctx.Done()
+	l.Info("shutting down")
+	l.Error(listener.Shutdown(), "shutting down server")
+	l.Error(listener2.Shutdown(), "shutting down server")
 	l.Info("done")
 }
 
