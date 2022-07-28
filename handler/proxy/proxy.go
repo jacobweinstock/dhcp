@@ -99,26 +99,29 @@ func (h *Handler) setDefaults() {
 }
 
 func (h *Handler) handleMsg(ctx context.Context, mac net.HardwareAddr, input *dhcpv4.DHCPv4, mt dhcpv4.MessageType) (*dhcpv4.DHCPv4, error) {
-	d, n, err := h.readBackend(ctx, mac)
+	if !h.Netboot.Enabled {
+		return nil, errors.New("serving netboot clients is not enabled")
+	}
+	n, err := h.readBackend(ctx, mac)
 	if err != nil {
-		h.Log.Error(err, "error reading from backend")
+		h.Log.Error(err, "error reading from backend", "mac", mac.String())
 
 		return nil, err
 	}
 
-	if h.Netboot.Enabled && n.AllowNetboot {
+	if n.AllowNetboot {
 		if err := h.isNetbootClient(input); err != nil {
-			h.Log.Error(err, "not a netboot client.")
+			h.Log.Error(err, "not a netboot client", "mac", mac.String())
 
 			return nil, err
 		}
-		return h.updateMsg(ctx, input, d, n, mt), nil
-	} else {
-		msg := "netboot is not enabled or the client is not allowed to netboot"
-		h.Log.V(1).Info(msg, "netboot", h.Netboot.Enabled, "allowNetboot", n.AllowNetboot, "isNetbootClient", h.isNetbootClient(input))
-
-		return nil, errors.New(msg)
+		return h.updateMsg(ctx, input, n, mt), nil
 	}
+
+	msg := "client is not allowed to netboot"
+	h.Log.V(1).Info(msg, "allowNetboot", n.AllowNetboot, "mac", mac.String())
+
+	return nil, errors.New(msg)
 }
 
 // Handle responds to DHCP messages with DHCP server options.
@@ -184,30 +187,29 @@ func (h *Handler) Handle(conn net.PacketConn, peer net.Addr, pkt *dhcpv4.DHCPv4)
 }
 
 // readBackend encapsulates the backend read and opentelemetry handling.
-func (h *Handler) readBackend(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *data.Netboot, error) {
+func (h *Handler) readBackend(ctx context.Context, mac net.HardwareAddr) (*data.Netboot, error) {
 	h.setDefaults()
 
 	tracer := otel.Tracer(tracerName)
 	ctx, span := tracer.Start(ctx, "Hardware data get")
 	defer span.End()
 
-	d, n, err := h.Backend.Read(ctx, mac)
+	_, n, err := h.Backend.Read(ctx, mac)
 	if err != nil {
 		h.Log.Error(err, "error getting DHCP data from backend", "mac", mac.String())
 		span.SetStatus(codes.Error, err.Error())
 
-		return nil, nil, err
+		return nil, err
 	}
 
-	span.SetAttributes(d.EncodeToAttributes()...)
 	span.SetAttributes(n.EncodeToAttributes()...)
 	span.SetStatus(codes.Ok, "done reading from backend")
 
-	return d, n, nil
+	return n, nil
 }
 
 // updateMsg handles updating DHCP packets with the data from the backend.
-func (h *Handler) updateMsg(ctx context.Context, pkt *dhcpv4.DHCPv4, d *data.DHCP, n *data.Netboot, msgType dhcpv4.MessageType) *dhcpv4.DHCPv4 {
+func (h *Handler) updateMsg(ctx context.Context, pkt *dhcpv4.DHCPv4, n *data.Netboot, msgType dhcpv4.MessageType) *dhcpv4.DHCPv4 {
 	mods := []dhcpv4.Modifier{
 		dhcpv4.WithMessageType(msgType),
 		dhcpv4.WithGeneric(dhcpv4.OptionServerIdentifier, h.IPAddr.IPAddr().IP),
@@ -284,7 +286,7 @@ func (h *Handler) isNetbootClient(pkt *dhcpv4.DHCPv4) error {
 // set the following DHCP options:
 // opt43, opt97, opt60, opt54
 // set the following DHCP headers:
-// siaddr, sname, bootfile,
+// siaddr, sname, bootfile.
 func (h *Handler) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *data.Netboot) dhcpv4.Modifier {
 	// return dhcpv4.Modifier(func(pkt *dhcpv4.DHCPv4) {})
 	// m is a received DHCPv4 packet.
@@ -294,12 +296,10 @@ func (h *Handler) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *d
 		// if the client sends opt 60 with HTTPClient then we need to respond with opt 60
 		one, opt60 := setOpt54And60AndSNAME(d.ClassIdentifier(), h.Netboot.IPXEBinServerTFTP.IP().IPAddr().IP, net.ParseIP(h.Netboot.IPXEBinServerHTTP.Host))
 		one(d)
-		//d.UpdateOption(dhcpv4.OptServerIdentifier(h.IPAddr.IPAddr().IP))
 		d.BootFileName = "/netboot-not-allowed"
 		d.ServerIPAddr = net.IPv4(0, 0, 0, 0)
 		if n.AllowNetboot {
 			a := arch(m)
-			// h.Log.Info("debug", "arch:", a)
 			bin, found := ArchToBootFile[a]
 			if !found {
 				h.Log.Error(fmt.Errorf("unable to find bootfile for arch"), "network boot not allowed", "arch", a, "archInt", int(a), "mac", m.ClientHWAddr)
@@ -316,10 +316,6 @@ func (h *Handler) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *d
 				6:  []byte{8},
 				69: oteldhcp.TraceparentFromContext(ctx),
 			}
-			if d.BootFileName == ipxeScript.String() {
-				//d.ServerHostName = ""
-			}
-			//h.Log.Info("debug", "len", len(oteldhcp.TraceparentFromContext(ctx)), "43_69_byte", oteldhcp.TraceparentFromContext(ctx), "43_69_string", string(oteldhcp.TraceparentFromContext(ctx)))
 			if rpi.IsRPI(m.ClientHWAddr) {
 				h.Log.Info("this is a Raspberry Pi", "mac", m.ClientHWAddr)
 				rpi.AddVendorOpts(pxe)
@@ -336,7 +332,7 @@ func (h *Handler) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *d
 // input arguments `tftp`, `ipxe` and `iscript` use non string types so as to attempt to be more clear about the expectation around what is wanted for these values.
 // It also helps us avoid having to validate a string in multiple ways.
 func (h *Handler) bootfileAndNextServer(ctx context.Context, uClass UserClass, opt60 clientType, bin string, tftp netaddr.IPPort, ipxe, iscript *url.URL) (string, net.IP) {
-	nextServer := net.IPv4(0, 0, 0, 0)
+	var nextServer net.IP
 	var bootfile string
 	if tp := otelhelpers.TraceparentStringFromContext(ctx); h.OTELEnabled && tp != "" {
 		bin = fmt.Sprintf("%s-%v", bin, tp)
@@ -365,13 +361,6 @@ func (h *Handler) bootfileAndNextServer(ctx context.Context, uClass UserClass, o
 		bootfile = bin
 		nextServer = tftp.UDPAddr().IP
 	}
-
-	/*
-		h.Log.Info("===============")
-		h.Log.Info("debug", "bootfile:", bootfile)
-		h.Log.Info("debug", "nextServer:", nextServer)
-		h.Log.Info("===============")
-	*/
 
 	return bootfile, nextServer
 }

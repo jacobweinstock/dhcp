@@ -1,3 +1,4 @@
+// Package internal seeks to provide some common functionality for the dhcp package.
 package internal
 
 import (

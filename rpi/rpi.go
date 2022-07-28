@@ -15,7 +15,7 @@ func IsRPI(hw net.HardwareAddr) bool {
 	// check the MAC address. We could reach out to some external server to tell us if the MAC address should
 	// use these extra Raspberry PI options but that would require a dependency on some external service and all the trade-offs that
 	// come with that. See https://udger.com/resources/mac-address-vendor-detail?name=raspberry_pi_foundation.
-	// TODO:(jacobweinstock) look into useing OPT97 to detect if a request is from a Raspberry Pi.
+	// TODO:(jacobweinstock) look into using OPT97 to detect if a request is from a Raspberry Pi.
 	// see https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#DHCP_OPTION97.
 	switch strings.ToLower(hw.String()) {
 	case "28:cd:c1", "b8:27:eb", "dc:a6:32", "e4:5f:01":
@@ -25,7 +25,7 @@ func IsRPI(hw net.HardwareAddr) bool {
 	return false
 }
 
-// AddVenderOpts updates a given dhcpv4.Options map with Raspberry pi specific options and returns an encoded DHCP option 43.
+// AddVendorOpts updates a given dhcpv4.Options map with Raspberry pi specific options and returns an encoded DHCP option 43.
 func AddVendorOpts(opt43 dhcpv4.Options) {
 	// Raspberry PI's need sub options 9 and 10 of parent option 43.
 	// TODO: provide doc link for why these options are needed.
