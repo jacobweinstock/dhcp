@@ -31,6 +31,7 @@ type DHCP struct {
 type Netboot struct {
 	AllowNetboot  bool     // If true, the client will be provided netboot options in the DHCP offer/ack.
 	IPXEScriptURL *url.URL // Overrides a default value that is passed into DHCP on startup.
+	VLAN          string   // DHCP option 43.116. Used to create VLAN interfaces in iPXE.
 }
 
 // ToDHCPMods translates a DHCP struct to a slice of DHCP packet modifiers.

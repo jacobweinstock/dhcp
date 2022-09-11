@@ -13,7 +13,7 @@ import (
 	"github.com/tinkerbell/dhcp/rpi"
 )
 
-// setNetworkBootOpts purpose is to sets 3 or 4 values. 2 DHCP headers, option 43 and optionally option (60).
+// setNetworkBootOpts purpose is to set 3 or 4 values. 2 DHCP headers, option 43 and optionally option (60).
 // These headers and options are returned as a dhcvp4.Modifier that can be used to modify a dhcp response.
 // github.com/insomniacslk/dhcp uses this method to simplify packet manipulation.
 //
@@ -52,9 +52,11 @@ func (h *Handler) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *d
 			}
 			d.BootFileName, d.ServerIPAddr = option.BootfileAndNextServer(ctx, uClass, h.Netboot.UserClass, opt60, bin, h.Netboot.IPXEBinServerTFTP, h.Netboot.IPXEBinServerHTTP, ipxeScript, h.OTELEnabled)
 			pxe := dhcpv4.Options{ // FYI, these are suboptions of option43. ref: https://datatracker.ietf.org/doc/html/rfc2132#section-8.4
-				// PXE Boot Server Discovery Control - bypass, just boot from filename.
-				6:  []byte{8},
-				69: otel.TraceparentFromContext(ctx),
+				6:   []byte{8}, // PXE Boot Server Discovery Control - bypass, just boot from filename.
+				69:  otel.TraceparentFromContext(ctx),
+			}
+			if n.VLAN != "" {
+				pxe[116] = []byte(n.VLAN) // vlan to use for iPXE
 			}
 			if rpi.IsRPI(m.ClientHWAddr) {
 				rpi.AddVendorOpts(pxe)

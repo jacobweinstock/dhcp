@@ -10,7 +10,7 @@ require (
 	github.com/go-logr/stdr v1.2.2
 	github.com/google/go-cmp v0.5.8
 	github.com/imdario/mergo v0.3.12
-	github.com/insomniacslk/dhcp v0.0.0-20220119180841-3c283ff8b7dd
+	github.com/insomniacslk/dhcp v0.0.0-20220910131218-74d7c5e9788c
 	github.com/libp2p/go-reuseport v0.2.0
 	github.com/tonglil/buflogr v0.0.0-20220413082439-d4c2784244cd
 	go.opentelemetry.io/otel v1.4.0

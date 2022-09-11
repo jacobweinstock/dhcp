@@ -34,27 +34,30 @@ func main() {
 		panic(err)
 	}
 
-	listener := &dhcp.Listener{Addr: netaddr.IPPortFrom(netaddr.IPv4(0, 0, 0, 0), 67), Reuseport: true}
-	listener2 := &dhcp.Listener{Addr: netaddr.IPPortFrom(netaddr.IPv4(0, 0, 0, 0), 67), Reuseport: true}
+	// listener := &dhcp.Listener{Addr: netaddr.IPPortFrom(netaddr.IPv4(0, 0, 0, 0), 67), Reuseport: true}
+	listener2 := &dhcp.Listener{Addr: netaddr.IPPortFrom(netaddr.IPv4(0, 0, 0, 0), 67), IFName: ""}
 
 	go func() {
-		reservationHandler := &reservation.Handler{
-			Log:         l.WithValues("handler", "reservation"),
-			IPAddr:      netaddr.IPv4(192, 168, 2, 221),
-			OTELEnabled: true,
-			Backend:     backend,
-		}
-		l.Info("starting server", "handler", "reservationHandler", "addr", listener.Addr)
-		l.Error(listener.ListenAndServe(reservationHandler), "done")
+		/*
+			reservationHandler := &reservation.Handler{
+				Log:         l.WithValues("handler", "reservation"),
+				IPAddr:      netaddr.IPv4(192, 168, 1, 94),
+				OTELEnabled: true,
+				Backend:     backend,
+			}
+			l.Info("starting server", "handler", "reservationHandler", "addr", listener.Addr)
+			l.Error(listener.ListenAndServe(reservationHandler), "done")
+		*/
+
 	}()
 	go func() {
 		proxyHandler := &proxy.Handler{
 			Log:    l.WithValues("handler", "proxy"),
-			IPAddr: netaddr.IPv4(192, 168, 2, 221),
+			IPAddr: netaddr.IPv4(192, 168, 1, 94),
 			Netboot: proxy.Netboot{
-				IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 221), 69),
-				IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.2.221:8080"},
-				IPXEScriptURL:     &url.URL{Scheme: "http", Host: "192.168.2.221:9090", Path: "/auto.ipxe"},
+				IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 1, 94), 69),
+				IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.1.94:8080"},
+				IPXEScriptURL:     &url.URL{Scheme: "http", Host: "192.168.1.94:9090", Path: "/auto.ipxe"},
 				Enabled:           true,
 			},
 			OTELEnabled: true,
@@ -62,11 +65,12 @@ func main() {
 		}
 		l.Info("starting server", "handler", "proxyHandler", "addr", listener2.Addr)
 		l.Error(listener2.ListenAndServe(proxyHandler), "done")
+		done()
 	}()
 
 	<-ctx.Done()
 	l.Info("shutting down")
-	l.Error(listener.Shutdown(), "shutting down server")
+	// l.Error(listener.Shutdown(), "shutting down server")
 	l.Error(listener2.Shutdown(), "shutting down server")
 	l.Info("done")
 }

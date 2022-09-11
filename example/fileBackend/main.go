@@ -37,9 +37,9 @@ func main() {
 		Log:    l,
 		IPAddr: netaddr.IPv4(192, 168, 2, 221),
 		Netboot: reservation.Netboot{
-			IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 160), 69),
+			IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 221), 69),
 			IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.2.221:8080"},
-			IPXEScriptURL:     &url.URL{Scheme: "http", Host: "192.168.2.160:9090", Path: "/auto.ipxe"},
+			IPXEScriptURL:     &url.URL{Scheme: "http", Host: "netboot.xyz"},
 			Enabled:           true,
 		},
 		OTELEnabled: true,

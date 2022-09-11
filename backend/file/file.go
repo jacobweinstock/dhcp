@@ -36,6 +36,7 @@ var (
 type netboot struct {
 	AllowPXE      bool   `yaml:"allowPxe"`      // If true, the client will be provided netboot options in the DHCP offer/ack.
 	IPXEScriptURL string `yaml:"ipxeScriptUrl"` // Overrides default value of that is passed into DHCP on startup.
+	VLAN          string `yaml:"vlan"`          // DHCP option 43.116. Used to create VLAN interfaces in iPXE.
 }
 
 // dhcp is the structure for the data expected in a file.
@@ -185,11 +186,12 @@ func (w *Watcher) translate(r dhcp) (*data.DHCP, *data.Netboot, error) {
 	d.IPAddress = ip
 
 	// subnet mask, required
-	sm, err := netaddr.ParseIP(r.SubnetMask)
-	if err != nil {
+	mask := net.ParseIP(r.SubnetMask)
+	if mask == nil {
 		return nil, nil, fmt.Errorf("%v: %w", err, errParseSubnet)
 	}
-	d.SubnetMask = sm.IPAddr().IP.DefaultMask()
+
+	d.SubnetMask = net.IPv4Mask(mask[12], mask[13], mask[14], mask[15])
 
 	// default gateway, optional
 	if dg, err := netaddr.ParseIP(r.DefaultGateway); err != nil {
@@ -248,6 +250,8 @@ func (w *Watcher) translate(r dhcp) (*data.DHCP, *data.Netboot, error) {
 		}
 		n.IPXEScriptURL = u
 	}
+
+	n.VLAN = r.Netboot.VLAN
 
 	return d, n, nil
 }

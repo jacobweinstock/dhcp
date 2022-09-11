@@ -11,9 +11,6 @@ import (
 
 	"github.com/equinix-labs/otel-init-go/otelhelpers"
 	"github.com/insomniacslk/dhcp/dhcpv4"
-	"github.com/tinkerbell/dhcp/data"
-	oteldhcp "github.com/tinkerbell/dhcp/otel"
-	"github.com/tinkerbell/dhcp/rpi"
 	"inet.af/netaddr"
 )
 
@@ -178,6 +175,7 @@ func GetClientType(opt60 string) ClientType {
 	return PXEClient
 }
 
+/*
 // SetNetworkBootOpts sets the network boot options for the DHCP reply, based on the PXE spec for a proxyDHCP server
 // found here: http://www.pix.net/software/pxeboot/archive/pxespec.pdf
 // set the following DHCP options:
@@ -228,3 +226,4 @@ func SetNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *data.Netboot) 
 
 	return withNetboot
 }
+*/

@@ -134,10 +134,16 @@ func (h *Handler) readBackend(ctx context.Context, mac net.HardwareAddr) (*data.
 // updateMsg handles updating DHCP packets with the data from the backend.
 func (h *Handler) updateMsg(ctx context.Context, pkt *dhcpv4.DHCPv4, d *data.DHCP, n *data.Netboot, msgType dhcpv4.MessageType) *dhcpv4.DHCPv4 {
 	h.setDefaults()
+	/*vlan := dhcpv4.Options{
+		38:  []byte{12},
+		190: []byte("myuser"),
+	}*/
 	mods := []dhcpv4.Modifier{
 		dhcpv4.WithMessageType(msgType),
 		dhcpv4.WithGeneric(dhcpv4.OptionServerIdentifier, h.IPAddr.IPAddr().IP),
 		dhcpv4.WithServerIP(h.IPAddr.IPAddr().IP),
+		// dhcpv4.WithGeneric(dhcpv4.Option8021PVLANID, []byte{0x00, 0x00, 0x00, 0xC}),
+		// dhcpv4.WithGeneric(dhcpv4.OptionEtherboot, vlan.ToBytes()),
 	}
 	mods = append(mods, d.ToDHCPMods()...)
 

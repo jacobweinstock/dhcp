@@ -162,15 +162,6 @@ func (h *Handler) Handle(conn net.PacketConn, peer net.Addr, pkt *dhcpv4.DHCPv4)
 
 			return
 		}
-	case dhcpv4.MessageTypeRelease:
-		// Since the design of this DHCP server is that all IP addresses are
-		// Host reservations, when a client releases an address, the server
-		// doesn't have anything to do. This case is included for clarity of this
-		// design decision.
-		log.Info("received release message, no response required")
-		span.SetStatus(codes.Ok, "received release message, no response required")
-
-		return
 	default:
 		log.Info("received unknown/unsupported message type", "type", mt.String())
 		span.SetAttributes(attribute.String("type", mt.String()))
@@ -217,9 +208,10 @@ func (h *Handler) updateMsg(ctx context.Context, pkt *dhcpv4.DHCPv4, n *data.Net
 	mods := []dhcpv4.Modifier{
 		dhcpv4.WithMessageType(msgType),
 		dhcpv4.WithGeneric(dhcpv4.OptionServerIdentifier, h.IPAddr.IPAddr().IP),
-		dhcpv4.WithServerIP(h.IPAddr.IPAddr().IP),
+		dhcpv4.WithServerIP(h.Netboot.IPXEBinServerTFTP.UDPAddr().IP),
 		h.setNetworkBootOpts(ctx, pkt, n),
 		setOpt97(pkt.GetOneOption(dhcpv4.OptionClientMachineIdentifier)),
+		// func(d *dhcpv4.DHCPv4) { d.ServerHostName = h.IPAddr.String() },
 	}
 
 	reply, err := dhcpv4.NewReplyFromRequest(pkt, mods...)
@@ -247,8 +239,8 @@ func (h *Handler) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *d
 		// one(d)
 		o60 := option.SetOpt60(d.ClassIdentifier())
 		o60(d)
-		sname := option.SetHeaderSNAME(d.ClassIdentifier(), h.Netboot.IPXEBinServerTFTP.IP().IPAddr().IP, net.ParseIP(h.Netboot.IPXEBinServerHTTP.Host))
-		sname(d)
+		// sname := option.SetHeaderSNAME(d.ClassIdentifier(), h.Netboot.IPXEBinServerTFTP.IP().IPAddr().IP, net.ParseIP(h.Netboot.IPXEBinServerHTTP.Host))
+		// sname(d)
 		d.BootFileName = "/netboot-not-allowed"
 		d.ServerIPAddr = net.IPv4(0, 0, 0, 0)
 		if n.AllowNetboot {
@@ -266,8 +258,11 @@ func (h *Handler) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *d
 			d.BootFileName, d.ServerIPAddr = option.BootfileAndNextServer(ctx, uClass, h.Netboot.UserClass, option.GetClientType(d.ClassIdentifier()), bin, h.Netboot.IPXEBinServerTFTP, h.Netboot.IPXEBinServerHTTP, ipxeScript, h.OTELEnabled)
 			pxe := dhcpv4.Options{ // FYI, these are suboptions of option43. ref: https://datatracker.ietf.org/doc/html/rfc2132#section-8.4
 				// PXE Boot Server Discovery Control - bypass, just boot from filename.
-				6:  []byte{8},
+				6: []byte{8},
 				69: oteldhcp.TraceparentFromContext(ctx),
+			}
+			if n.VLAN != "" {
+				pxe[116] = []byte(n.VLAN) // vlan to use for iPXE
 			}
 			if rpi.IsRPI(m.ClientHWAddr) {
 				h.Log.Info("this is a Raspberry Pi", "mac", m.ClientHWAddr)
