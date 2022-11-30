@@ -1,5 +1,4 @@
-// Package rpi handles the DHCPv4 messages for Raspberry Pi's.
-package rpi
+package option
 
 import (
 	"encoding/hex"
@@ -9,8 +8,8 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 )
 
-// IsRPI returns true if the given MAC address contains a Raspberry Pi assigned prefix.
-func IsRPI(hw net.HardwareAddr) bool {
+// isRPI returns true if the given MAC address contains a Raspberry Pi assigned prefix.
+func isRPI(hw net.HardwareAddr) bool {
 	// The best way at the moment to figure out if a DHCP request is coming from a Raspberry PI is to
 	// check the MAC address. We could reach out to some external server to tell us if the MAC address should
 	// use these extra Raspberry PI options but that would require a dependency on some external service and all the trade-offs that
@@ -26,8 +25,8 @@ func IsRPI(hw net.HardwareAddr) bool {
 	return false
 }
 
-// AddVendorOpts updates a given dhcpv4.Options map with Raspberry pi specific options and returns an encoded DHCP option 43.
-func AddVendorOpts(opt43 dhcpv4.Options) {
+// addVendorOpts updates a given dhcpv4.Options map with Raspberry pi specific options and returns an encoded DHCP option 43.
+func addVendorOpts(opt43 dhcpv4.Options) {
 	// Raspberry PI's need sub options 9 and 10 of parent option 43.
 	// TODO: provide doc link for why these options are needed.
 	// TODO document what these hex strings are and why they are needed.

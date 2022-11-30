@@ -15,3 +15,7 @@ type Handler struct{}
 func (h Handler) Read(_ context.Context, _ net.HardwareAddr) (*data.DHCP, *data.Netboot, error) {
 	return nil, nil, errors.New("no backend specified, please specify a backend")
 }
+
+func (h Handler) Name() string {
+	return "noop"
+}

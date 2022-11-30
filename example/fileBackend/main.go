@@ -35,23 +35,22 @@ func main() {
 
 	handler := &reservation.Handler{
 		Log:    l,
-		IPAddr: netaddr.IPv4(192, 168, 2, 221),
+		IPAddr: netaddr.IPv4(192, 168, 2, 59),
 		Netboot: reservation.Netboot{
-			IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 221), 69),
-			IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.2.221:8080"},
+			IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 59), 69),
+			IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.2.59:8080"},
 			IPXEScriptURL:     &url.URL{Scheme: "http", Host: "netboot.xyz"},
 			Enabled:           true,
 		},
 		OTELEnabled: true,
 		Backend:     backend,
 	}
-	listener := &dhcp.Listener{}
-	go func() {
-		<-ctx.Done()
-		l.Error(listener.Shutdown(), "shutting down server")
-	}()
-	l.Info("starting server", "addr", handler.IPAddr)
-	l.Error(listener.ListenAndServe(handler), "done")
+	listener := &dhcp.Listener{Addr: netaddr.IPPortFrom(netaddr.IPv4(0, 0, 0, 0), 67), IFName: "eno1"}
+	l.Info("starting listener and server")
+	if err := listener.ListenAndServe(ctx, handler); err != nil {
+		l.Error(err, "server failed")
+	}
+	l.Info("shutting down")
 	l.Info("done")
 }
 

@@ -7,7 +7,7 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 	"sync"
 
@@ -75,18 +75,18 @@ func NewWatcher(l logr.Logger, f string) (*Watcher, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := watcher.Add(f); err != nil {
+	if err := watcher.Add(path.Dir(f)); err != nil {
 		return nil, err
 	}
 
 	w := &Watcher{
-		FilePath: f,
+		FilePath: path.Clean(f),
 		watcher:  watcher,
 		Log:      l,
 	}
 
 	w.fileMu.RLock()
-	w.data, err = os.ReadFile(filepath.Clean(f))
+	w.data, err = os.ReadFile(path.Clean(f))
 	w.fileMu.RUnlock()
 	if err != nil {
 		return nil, err
@@ -138,6 +138,11 @@ func (w *Watcher) Read(ctx context.Context, mac net.HardwareAddr) (*data.DHCP, *
 	return nil, nil, err
 }
 
+// Name returns the name of the backend.
+func (w *Watcher) Name() string {
+	return "file"
+}
+
 // Start starts watching a file for changes and updates the in memory data (w.data) on changes.
 // Start is a blocking method. Use a context cancellation to exit.
 func (w *Watcher) Start(ctx context.Context) {
@@ -150,14 +155,14 @@ func (w *Watcher) Start(ctx context.Context) {
 			if !ok {
 				continue
 			}
-			if event.Op&fsnotify.Write == fsnotify.Write {
+			if event.Name == w.FilePath && event.Op == fsnotify.Write {
 				w.Log.Info("file changed, updating cache")
 				w.fileMu.RLock()
 				d, err := os.ReadFile(w.FilePath)
 				w.fileMu.RUnlock()
 				if err != nil {
 					w.Log.Error(err, "failed to read file", "file", w.FilePath)
-					break
+					continue
 				}
 				w.dataMu.Lock()
 				w.data = d
@@ -169,6 +174,7 @@ func (w *Watcher) Start(ctx context.Context) {
 			}
 			w.Log.Info("error watching file", "err", err)
 		}
+
 	}
 }
 

@@ -1,17 +1,6 @@
-package reservation
+package deprecated
 
-import (
-	"context"
-	"fmt"
-	"net"
-	"strings"
-
-	"github.com/insomniacslk/dhcp/dhcpv4"
-	"github.com/tinkerbell/dhcp/data"
-	"github.com/tinkerbell/dhcp/handler/option"
-	"github.com/tinkerbell/dhcp/otel"
-	"github.com/tinkerbell/dhcp/rpi"
-)
+/*
 
 // setNetworkBootOpts purpose is to set 3 or 4 values. 2 DHCP headers, option 43 and optionally option (60).
 // These headers and options are returned as a dhcvp4.Modifier that can be used to modify a dhcp response.
@@ -38,33 +27,34 @@ func (h *Handler) setNetworkBootOpts(ctx context.Context, m *dhcpv4.DHCPv4, n *d
 		}
 		d.BootFileName = "/netboot-not-allowed"
 		d.ServerIPAddr = net.IPv4(0, 0, 0, 0)
-		if n.AllowNetboot {
-			a := option.GetArch(m)
-			bin, found := option.ArchToBootFile[a]
-			if !found {
-				h.Log.Error(fmt.Errorf("unable to find bootfile for arch"), "network boot not allowed", "arch", a, "archInt", int(a), "mac", m.ClientHWAddr)
-				return
-			}
-			uClass := option.UserClass(string(m.GetOneOption(dhcpv4.OptionUserClassInformation)))
-			ipxeScript := h.Netboot.IPXEScriptURL
-			if n.IPXEScriptURL != nil {
-				ipxeScript = n.IPXEScriptURL
-			}
-			d.BootFileName, d.ServerIPAddr = option.BootfileAndNextServer(ctx, uClass, h.Netboot.UserClass, opt60, bin, h.Netboot.IPXEBinServerTFTP, h.Netboot.IPXEBinServerHTTP, ipxeScript, h.OTELEnabled)
-			pxe := dhcpv4.Options{ // FYI, these are suboptions of option43. ref: https://datatracker.ietf.org/doc/html/rfc2132#section-8.4
-				6:   []byte{8}, // PXE Boot Server Discovery Control - bypass, just boot from filename.
-				69:  otel.TraceparentFromContext(ctx),
-			}
-			if n.VLAN != "" {
-				pxe[116] = []byte(n.VLAN) // vlan to use for iPXE
-			}
-			if rpi.IsRPI(m.ClientHWAddr) {
-				rpi.AddVendorOpts(pxe)
-			}
 
-			d.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation, pxe.ToBytes()))
+		a := option.GetArch(m)
+		bin, found := option.ArchToBootFile[a]
+		if !found {
+			h.Log.Error(fmt.Errorf("unable to find bootfile for arch"), "network boot not allowed", "arch", a, "archInt", int(a), "mac", m.ClientHWAddr)
+			return
 		}
+		uClass := option.UserClass(string(m.GetOneOption(dhcpv4.OptionUserClassInformation)))
+		ipxeScript := h.Netboot.IPXEScriptURL
+		if n.IPXEScriptURL != nil {
+			ipxeScript = n.IPXEScriptURL
+		}
+		d.BootFileName, d.ServerIPAddr = option.BootfileAndNextServer(ctx, uClass, h.Netboot.UserClass, opt60, bin, h.Netboot.IPXEBinServerTFTP, h.Netboot.IPXEBinServerHTTP, ipxeScript, h.OTELEnabled)
+		pxe := dhcpv4.Options{ // FYI, these are suboptions of option43. ref: https://datatracker.ietf.org/doc/html/rfc2132#section-8.4
+			6:  []byte{8}, // PXE Boot Server Discovery Control - bypass, just boot from filename.
+			69: otel.TraceparentFromContext(ctx),
+		}
+		if n.VLAN != "" {
+			pxe[116] = []byte(n.VLAN) // vlan to use for iPXE
+		}
+		if rpi.IsRPI(m.ClientHWAddr) {
+			rpi.AddVendorOpts(pxe)
+		}
+
+		d.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation, pxe.ToBytes()))
+
 	}
 
 	return withNetboot
 }
+*/

@@ -1,4 +1,4 @@
-package otel
+package option
 
 import (
 	"bytes"
@@ -28,10 +28,10 @@ func TestEncode(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			e := &Encoder{}
+			e := &Otel{}
 			got := e.Encode(tt.pkt, "test")
 			if tt.allEncoders {
-				got = e.Encode(tt.pkt, "test", AllEncoders()...)
+				got = e.Encode(tt.pkt, "test", AllOtelEncoders()...)
 			}
 			if diff := cmp.Diff(got, tt.want, cmpopts.IgnoreUnexported(attribute.Value{})); diff != "" {
 				t.Log(got)

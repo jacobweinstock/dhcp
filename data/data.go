@@ -1,4 +1,4 @@
-// Package data is an interface between DHCP backend implementations and the DHCP server.
+// Package data is the data shared between DHCP backend implementations and DHCP handlers.
 package data
 
 import (
@@ -25,6 +25,7 @@ type DHCP struct {
 	NTPServers       []net.IP         // DHCP option 42.
 	LeaseTime        uint32           // DHCP option 51.
 	DomainSearch     []string         // DHCP option 119.
+	VLANID           string           // DHCP option 43.116
 }
 
 // Netboot holds info used in netbooting a client.

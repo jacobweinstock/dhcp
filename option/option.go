@@ -53,19 +53,19 @@ func (u UserClass) String() string {
 // input arguments `tftp`, `ipxe` and `iscript` use non string types so as to attempt to be more clear about the expectation around what is wanted for these values.
 // It also helps us avoid having to validate a string in multiple ways.
 func BootfileAndNextServer(ctx context.Context, pktUserClass UserClass, customUserClass UserClass, opt60 ClientType, bin string, tftp netaddr.IPPort, ipxe, iscript *url.URL, otelEnabled bool) (string, net.IP) {
-	var nextServer net.IP
 	var bootfile string
+	nextServer := tftp.UDPAddr().IP
 	if tp := otelhelpers.TraceparentStringFromContext(ctx); otelEnabled && tp != "" {
 		bin = fmt.Sprintf("%s-%v", bin, tp)
 	}
-	// If a machine is in an ipxe boot loop, it is likely to be that we aren't matching on IPXE or Tinkerbell userclass (option 77).
+
+	// If a machine is in an ipxe boot loop, it is likely to be that we aren't matching on IPXE or Tinkerbell user class (option 77).
 	switch { // order matters here.
 	case pktUserClass == Tinkerbell, (customUserClass != "" && pktUserClass == customUserClass): // this case gets us out of an ipxe boot loop.
 		bootfile = "/no-ipxe-script-defined"
 		if iscript != nil {
 			bootfile = iscript.String()
 		}
-		nextServer = tftp.UDPAddr().IP
 	case opt60 == HTTPClient: // Check the client type from option 60.
 		bootfile = fmt.Sprintf("%s/%s", ipxe, bin)
 		ihost := strings.Split(ipxe.Host, ":")[0]
@@ -75,12 +75,10 @@ func BootfileAndNextServer(ctx context.Context, pktUserClass UserClass, customUs
 			ns = net.ParseIP("0.0.0.0")
 		}
 		nextServer = ns
-	case pktUserClass == IPXE: // if the "iPXE" user class is found it means we aren't in our custom version of ipxe, but because of the option 43 we're setting we need to give a full tftp url from which to boot.
+	case pktUserClass == IPXE: // if the "iPXE" user class is found it means we aren't in our custom version of ipxe, but because of the option 43.6 we're setting we need to give a full tftp url from which to boot.
 		bootfile = fmt.Sprintf("tftp://%v/%v", tftp.String(), bin)
-		nextServer = tftp.UDPAddr().IP
 	default:
 		bootfile = bin
-		nextServer = tftp.UDPAddr().IP
 	}
 
 	return bootfile, nextServer
@@ -90,7 +88,7 @@ func BootfileAndNextServer(ctx context.Context, pktUserClass UserClass, customUs
 // A valid netboot client will have the following in its DHCP request:
 // http://www.pix.net/software/pxeboot/archive/pxespec.pdf
 //
-// 1. is a DHCP discovery/request message type.
+// 1. is a DHCP discovery or request message type.
 // 2. option 93 is set.
 // 3. option 94 is set.
 // 4. option 97 is correct length.
@@ -141,7 +139,7 @@ func IsNetbootClient(pkt *dhcpv4.DHCPv4) error {
 	return nil
 }
 
-// setOpt54 based on option 60.
+// setOpt60AndSNAME based on option 60.
 func SetOpt60AndSNAME(opt60FromClient string, tftp net.IP, http net.IP) (dhcpv4.Modifier, ClientType) {
 	opt54 := tftp
 	opt60 := PXEClient

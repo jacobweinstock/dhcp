@@ -1,5 +1,5 @@
 // Package otel handles translating DHCP headers and options to otel key/value attributes.
-package otel
+package option
 
 import (
 	"context"
@@ -15,8 +15,8 @@ import (
 
 const keyNamespace = "DHCP"
 
-// Encoder holds the otel key/value attributes.
-type Encoder struct {
+// Otel holds the otel key/value attributes.
+type Otel struct {
 	Log logr.Logger
 }
 
@@ -43,7 +43,7 @@ func OptNotFound(err error) bool {
 }
 
 // Encode runs a slice of encoders against a DHCPv4 packet turning the values into opentelemetry attribute key/value pairs.
-func (e *Encoder) Encode(pkt *dhcpv4.DHCPv4, namespace string, encoders ...func(d *dhcpv4.DHCPv4, namespace string) (attribute.KeyValue, error)) []attribute.KeyValue {
+func (e *Otel) Encode(pkt *dhcpv4.DHCPv4, namespace string, encoders ...func(d *dhcpv4.DHCPv4, namespace string) (attribute.KeyValue, error)) []attribute.KeyValue {
 	if e.Log.GetSink() == nil {
 		e.Log = logr.Discard()
 	}
@@ -60,8 +60,8 @@ func (e *Encoder) Encode(pkt *dhcpv4.DHCPv4, namespace string, encoders ...func(
 	return attrs
 }
 
-// AllEncoders returns a slice of all available DHCP otel encoders.
-func AllEncoders() []func(d *dhcpv4.DHCPv4, namespace string) (attribute.KeyValue, error) {
+// AllOtelEncoders returns a slice of all available DHCP otel encoders.
+func AllOtelEncoders() []func(d *dhcpv4.DHCPv4, namespace string) (attribute.KeyValue, error) {
 	return []func(d *dhcpv4.DHCPv4, namespace string) (attribute.KeyValue, error){
 		EncodeYIADDR, EncodeSIADDR,
 		EncodeCHADDR, EncodeFILE,

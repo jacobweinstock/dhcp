@@ -35,23 +35,35 @@ func main() {
 	}
 	l = l.WithValues("backend", backend.Name())
 
-	listener := &dhcp.Listener{Addr: netaddr.IPPortFrom(netaddr.IPv4(0, 0, 0, 0), 67)}
+	reservationHandler := &reservation.Handler{
+		Log:         l.WithValues("handler", "reservation"),
+		IPAddr:      netaddr.IPv4(192, 168, 2, 59),
+		OTELEnabled: true,
+		Backend:     backend,
+		Netboot: reservation.Netboot{
+			IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 59), 69),
+			IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.2.59:8080"},
+			IPXEScriptURL:     &url.URL{Scheme: "http", Host: "192.168.1.94:9090", Path: "/auto.ipxe"},
+			Enabled:           true,
+		},
+	}
 	proxyHandler := &proxy.Handler{
 		Log:    l.WithValues("handler", "proxyDHCP"),
 		IPAddr: netaddr.IPv4(192, 168, 2, 59),
 		Netboot: proxy.Netboot{
 			IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 2, 59), 69),
 			IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.2.59:8080"},
-			IPXEScriptURL:     &url.URL{Scheme: "http", Host: "192.168.2.59:9090", Path: "/auto.ipxe"},
+			IPXEScriptURL:     &url.URL{Scheme: "http", Host: "192.168.1.94:9090", Path: "/auto.ipxe"},
 			Enabled:           true,
 		},
 		OTELEnabled: true,
 		Backend:     backend,
 	}
-	l = l.WithValues("handlers", proxyHandler.Name())
+	l = l.WithValues("handlers", []string{"reservation", "proxyDHCP"})
 
-	l.Info("starting listener")
-	if err := listener.ListenAndServe(ctx, proxyHandler); err != nil {
+	l.Info("starting listener and server")
+	listener := &dhcp.Listener{Addr: netaddr.IPPortFrom(netaddr.IPv4(0, 0, 0, 0), 67), IFName: "eno1"}
+	if err := listener.ListenAndServe(ctx, reservationHandler, proxyHandler); err != nil {
 		l.Error(err, "listener failed")
 	}
 	l.Info("shutting down")

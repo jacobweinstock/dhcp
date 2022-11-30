@@ -5,7 +5,6 @@ import (
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/iana"
-	"github.com/tinkerbell/dhcp/rpi"
 )
 
 // ArchToBootFile maps supported hardware PXE architectures types to iPXE binary files.
@@ -36,7 +35,7 @@ func GetArch(d *dhcpv4.DHCPv4) iana.Arch {
 	if len(fwt) == 0 {
 		return iana.Arch(255) // unknown arch
 	}
-	if rpi.IsRPI(d.ClientHWAddr) {
+	if isRPI(d.ClientHWAddr) {
 		return iana.Arch(41) // rpi
 	}
 	var archKnown bool

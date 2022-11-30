@@ -18,7 +18,7 @@ import (
 	"github.com/insomniacslk/dhcp/iana"
 	"github.com/insomniacslk/dhcp/rfc1035label"
 	"github.com/tinkerbell/dhcp/data"
-	"github.com/tinkerbell/dhcp/otel"
+	"github.com/tinkerbell/dhcp/option"
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/net/nettest"
 	"inet.af/netaddr"
@@ -60,6 +60,10 @@ func (m *mockBackend) Read(context.Context, net.HardwareAddr) (*data.DHCP, *data
 		IPXEScriptURL: m.ipxeScript,
 	}
 	return d, n, m.err
+}
+
+func (m *mockBackend) Name() string {
+	return "mock"
 }
 
 func TestHandle(t *testing.T) {
@@ -317,7 +321,7 @@ func TestUpdateMsg(t *testing.T) {
 					dhcpv4.OptClassIdentifier("HTTPClient"),
 					dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation, dhcpv4.Options{
 						6:  []byte{8},
-						69: otel.TraceparentFromContext(context.Background()),
+						69: option.TraceparentFromContext(context.Background()),
 					}.ToBytes()),
 				),
 			},

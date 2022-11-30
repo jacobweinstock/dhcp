@@ -1,0 +1,36 @@
+DHCP Headers and Options
+
+From Backend
+Headers
+- mac address (chaddr)
+- ip address (yiaddr)
+
+Options
+- subnet mask (1)
+- default gateway (3)
+- dns servers (6)
+- hostname (12)
+- domain name (15)
+- broadcast address (28)
+- ntp servers (42)
+- LeaseTime (51)
+- domain search (119)
+- vlan id (43.116)
+
+From listener
+Headers
+- sname
+
+Options
+- tftp server (66)
+- bootfile (67)
+
+
+From incoming DHCP packet
+Headers
+- message type ()
+
+Options
+- option 82 (circuit id)
+- option 70 (vendor class id)
+- option 43.69 (otel traceparent)

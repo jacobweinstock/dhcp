@@ -25,3 +25,8 @@ func (n *Handler) Handle(_ net.PacketConn, _ net.Addr, _ *dhcpv4.DHCPv4) {
 		n.Log.Info(msg)
 	}
 }
+
+// Name returns the name of the handler.
+func (n *Handler) Name() string {
+	return "noop"
+}

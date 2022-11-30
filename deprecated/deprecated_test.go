@@ -1,20 +1,6 @@
-package reservation
+package deprecated
 
-import (
-	"context"
-	"net"
-	"net/url"
-	"testing"
-
-	"github.com/go-logr/logr"
-	"github.com/google/go-cmp/cmp"
-	"github.com/insomniacslk/dhcp/dhcpv4"
-	"github.com/insomniacslk/dhcp/iana"
-	"github.com/tinkerbell/dhcp/data"
-	"github.com/tinkerbell/dhcp/handler/option"
-	oteldhcp "github.com/tinkerbell/dhcp/otel"
-)
-
+/*
 func TestSetNetworkBootOpts(t *testing.T) {
 	type args struct {
 		in0 context.Context
@@ -96,3 +82,4 @@ func TestSetNetworkBootOpts(t *testing.T) {
 		})
 	}
 }
+*/

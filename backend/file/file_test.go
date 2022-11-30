@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"io/ioutil"
 	"log"
 	"net"
@@ -25,37 +24,33 @@ import (
 
 func TestNewWatcher(t *testing.T) {
 	tests := map[string]struct {
-		createFile bool
-		want       string
-		wantErr    error
+		data    []byte
+		wantErr bool
 	}{
-		"contents equal": {createFile: true, want: "test content here"},
-		"file not found": {createFile: false, wantErr: &fs.PathError{}},
+		"contents equal": {data: []byte("hello there")},
+		"file not found": {wantErr: true},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Log(name)
 			var name string
-			if tt.createFile {
+			if !tt.wantErr {
 				var err error
-				name, err = createFile([]byte(tt.want))
+				name, err = createFile(tt.data)
 				if err != nil {
 					t.Fatal(err)
 				}
 				defer os.Remove(name)
 			}
-			w, err := NewWatcher(logr.Discard(), name)
-			if !errors.Is(err, tt.wantErr) && !errors.As(err, &tt.wantErr) {
-				t.Fatalf("NewWatcher() error = %v; type = %[1]T, wantErr %v; type = %[2]T", err, tt.wantErr)
-			}
-			var got string
-			if tt.wantErr != nil {
-				got = ""
+			got, err := NewWatcher(logr.Discard(), name)
+			if (err != nil) == tt.wantErr {
+				return
 			} else {
-				got = string(w.data)
+				t.Errorf("did not expect an error, but got %v", err)
 			}
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Fatal(diff)
+			if !bytes.EqualFold(got.data, tt.data) {
+				t.Fatalf("NewWatcher() = %v, want %v", got.data, tt.data)
 			}
 		})
 	}
@@ -107,11 +102,12 @@ func TestStartFileUpdateError(t *testing.T) {
 	go func() {
 		<-time.After(time.Millisecond)
 		got.FilePath = "not-found.txt"
-		got.watcher.Events <- fsnotify.Event{Op: fsnotify.Write}
+		got.watcher.Events <- fsnotify.Event{Name: got.FilePath, Op: fsnotify.Write}
 		cancel()
 	}()
 	got.Start(ctx)
 	time.Sleep(time.Second)
+	t.Log(out.String())
 	if diff := cmp.Diff(out.String(), tt.expectedOut); diff != "" {
 		t.Fatal(diff)
 	}
@@ -300,7 +296,7 @@ func TestRead(t *testing.T) {
 		wantErr error
 	}{
 		"no record found":        {mac: net.HardwareAddr{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}, wantErr: errRecordNotFound},
-		"record found":           {mac: net.HardwareAddr{0x08, 0x00, 0x27, 0x29, 0x4e, 0x67}, wantErr: nil},
+		"record found":           {mac: net.HardwareAddr{0x08, 0x00, 0x27, 0x9e, 0xf5, 0x3b}, wantErr: nil},
 		"fail error translating": {mac: net.HardwareAddr{0x08, 0x00, 0x27, 0x29, 0x4e, 0x68}, wantErr: errParseIP},
 		"fail parsing file":      {badData: true, wantErr: errFileFormat},
 	}

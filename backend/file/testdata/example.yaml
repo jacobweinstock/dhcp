@@ -1,7 +1,8 @@
 ---
-08:00:27:9e:f5:3a:
+#08:00:27:9e:f5:3a:
 #52:54:00:7c:10:cf:
 #f8:b4:6a:ab:8d:40:
+a8:a1:59:d0:e2:52:
   ipAddress: '192.168.2.154'
   subnetMask: '255.255.255.0'
   defaultGateway: '192.168.2.1'
@@ -19,13 +20,14 @@
   #- 'example.com'
   netboot:
     allowPxe: true
-    #ipxeScriptUrl: 'http://192.168.2.221:9090/auto.ipxe'
-    ipxeScriptUrl: 'http://boot.netboot.xyz/ipxe/netboot.xyz-undionly.kpxe'
-    # vlan: "12"
+    #ipxeScriptUrl: 'http://192.168.2.59:9191/auto.ipxe'
+    ipxeScriptUrl: 'http://boot.netboot.xyz'
+    #vlan: "15"
 #52:54:00:5b:9f:69:
-52:54:00:c9:f7:35:
+#52:54:00:c9:f7:35:
+52:54:00:ee:0d:0b:
   ipAddress: '192.168.2.153'
-  subnetMask: '255.255.254.0'
+  subnetMask: '255.255.255.0'
   defaultGateway: '192.168.2.1'
   nameServers:
   - '8.8.8.8'
@@ -40,7 +42,7 @@
   #domainSearch:
   #- 'example.com'
   netboot:
-    allowPxe: false
+    allowPxe: true
     #ipxeScriptUrl: 'http://192.168.2.160:9090/auto.ipxe'
     ipxeScriptUrl: 'http://boot.netboot.xyz'
 08:00:27:9e:f5:3b:
@@ -62,7 +64,8 @@
   netboot:
     allowPxe: true
     #ipxeScriptUrl: 'http://boot.netboot.xyz'
-08:00:27:45:fd:14:
+#08:00:27:45:fd:14:
+de:ad:c0:de:ca:fe:
   ipAddress: '192.168.2.158'
   subnetMask: '255.255.255.0'
   defaultGateway: '192.168.2.1'

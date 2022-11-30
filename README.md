@@ -34,13 +34,6 @@ Backends are functions that are called to interact with some kind of a persisten
 
 - [Tink Kubernetes](https://github.com/tinkerbell/tink)
   - This backend is the main use case. It interacts with the Hardware CRD of Tink to get DHCP information.
-- [Tink server](https://github.com/tinkerbell/tink)
-  - This backend is also a main use case, but will potentially be deprecated if the PostgreSQL is deprecated.
-  It pulls hardware data from the Tink API for use in the DHCP handlers.
 - File based
   - This backend is for mainly for testing and development.
   It reads a file for hardware data. See [example.yaml](./backend/file/testdata/example.yaml) for the data model.
-- [Cacher server](https://github.com/packethost/cacher)
-  - This backend is mainly for backward compatibility in [Boots](https://github.com/tinkerbell/boots).
-  It pulls hardware data from the Cacher API for use in the DHCP handlers.
-  It is planned for deprecation.

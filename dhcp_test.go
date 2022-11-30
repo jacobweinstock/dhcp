@@ -55,6 +55,10 @@ func (m *mock) Handle(conn net.PacketConn, peer net.Addr, pkt *dhcpv4.DHCPv4) {
 	m.Log.Info("sent reply")
 }
 
+func (m *mock) Name() string {
+	return "mock"
+}
+
 func (m *mock) setOpts() []dhcpv4.Modifier {
 	mods := []dhcpv4.Modifier{
 		dhcpv4.WithGeneric(dhcpv4.OptionServerIdentifier, m.ServerIP),
@@ -103,10 +107,9 @@ func TestListenAndServe(t *testing.T) {
 			defer done()
 			go func() {
 				<-ctx.Done()
-				s.Shutdown()
 			}()
 
-			go s.ListenAndServe(tt.h)
+			go s.ListenAndServe(ctx, tt.h)
 
 			// make client calls
 			d, err := dhcp(ctx)
@@ -138,16 +141,12 @@ func TestListenerAndServe(t *testing.T) {
 			}
 			ctx, done := context.WithTimeout(context.Background(), time.Millisecond*100)
 			defer done()
-			go func() {
-				<-ctx.Done()
-				s.Shutdown()
-			}()
 
-			err := s.ListenAndServe(tt.h)
+			err := s.ListenAndServe(ctx, tt.h)
 			switch err.(type) {
 			case *net.OpError:
 			default:
-				if err.Error() != "failed to create udp connection: cannot bind to port 67: permission denied" && !errors.Is(err, ErrNoConn) {
+				if err != tt.err && err.Error() != "failed to create udp connection: cannot bind to port 67: permission denied" && !errors.Is(err, ErrNoConn) {
 					t.Log(err)
 					t.Fatalf("got: %T, wanted: %T or ErrNoConn", err, &net.OpError{})
 				}
@@ -167,17 +166,13 @@ func TestServe(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			s := &Listener{
-				Addr: tt.addr,
-			}
 			ctx, done := context.WithTimeout(context.Background(), time.Millisecond*100)
 			defer done()
 			go func() {
 				<-ctx.Done()
-				s.Shutdown()
 			}()
 
-			err := Serve(nil, tt.h)
+			err := Serve(ctx, nil, tt.h)
 			switch err.(type) {
 			case *net.OpError:
 			default:
