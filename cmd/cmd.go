@@ -22,8 +22,9 @@ type cli struct {
 	// Addr is the ip and port to listen on.
 	Addr netaddr.IPPort
 	// Logger is the logger to use.
-	Logger logr.Logger
-	opts   netboot
+	Logger      logr.Logger
+	opts        netboot
+	DHCPEnabled bool
 }
 
 type backendFile struct {
@@ -55,7 +56,7 @@ func cliautomagic(ctx context.Context, c cli) ([]dhcp.Handler, error) {
 	var backend interface{}
 	switch c.backend {
 	case "noop":
-		backend = &noop.Handler{}
+		backend = noop.Handler{}
 	case "file":
 		fb, err := file.NewWatcher(c.Logger, c.fileBackend.Path)
 		if err != nil {
@@ -70,7 +71,7 @@ func cliautomagic(ctx context.Context, c cli) ([]dhcp.Handler, error) {
 	for _, hdlr := range c.handlers {
 		switch hdlr {
 		case "noop":
-			h = append(h, &noopHandler.Handler{})
+			h = append(h, noopHandler.Handler{Log: c.Logger})
 		case "reservation":
 			r := &reservation.Handler{
 				Log:         c.Logger.WithValues("handler", "reservation"),
@@ -83,6 +84,7 @@ func cliautomagic(ctx context.Context, c cli) ([]dhcp.Handler, error) {
 					IPXEScriptURL:     c.opts.IPXEScript,
 					Enabled:           c.opts.NetbootEnabled,
 				},
+				DHCPEnabled: c.DHCPEnabled,
 			}
 			h = append(h, r)
 		case "proxy":
@@ -99,6 +101,8 @@ func cliautomagic(ctx context.Context, c cli) ([]dhcp.Handler, error) {
 				},
 			}
 			h = append(h, p)
+		default:
+			return nil, fmt.Errorf("unknown handler: %s", hdlr)
 		}
 	}
 

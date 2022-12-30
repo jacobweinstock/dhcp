@@ -17,7 +17,7 @@ type Handler struct {
 }
 
 // Handle is the noop handler function.
-func (n *Handler) Handle(_ net.PacketConn, _ net.Addr, _ *dhcpv4.DHCPv4) {
+func (n Handler) Handle(_ net.PacketConn, _ net.Addr, _ *dhcpv4.DHCPv4) {
 	msg := "no handler specified. please specify a handler"
 	if n.Log.GetSink() == nil {
 		stdr.New(log.New(os.Stdout, "", log.Lshortfile)).Info(msg)
@@ -27,6 +27,6 @@ func (n *Handler) Handle(_ net.PacketConn, _ net.Addr, _ *dhcpv4.DHCPv4) {
 }
 
 // Name returns the name of the handler.
-func (n *Handler) Name() string {
+func (n Handler) Name() string {
 	return "noop"
 }

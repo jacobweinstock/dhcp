@@ -29,7 +29,7 @@ type command struct {
 	Handlers handlers
 	filePath string
 	// Addr is the ip and port to listen on.
-	Addr           netaddr.IPPort
+	Addr           IPXETFTP
 	IFace          string
 	NetbootEnabled bool
 	// OTELEnabled is a flag to enable otel.
@@ -38,6 +38,7 @@ type command struct {
 	IPXETFTP    IPXETFTP
 	IPXEHTTP    IPXEHTTP
 	IPXEScript  IPXEScript
+	DHCPEnabled bool
 }
 
 func main() {
@@ -52,7 +53,7 @@ func main() {
 	defer otelShutdown(ctx)
 
 	if err := execute(ctx, os.Args[1:]); err != nil && !errors.Is(err, context.Canceled) {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "{\"err\":\"%v\"}\n", err)
 		exitCode = 1
 	}
 }
@@ -65,6 +66,7 @@ func commandDefaults() *command {
 	return &command{
 		logLevel: "info",
 		backend:  "noop",
+		Handlers: handlers{"noop"},
 		DHCPAddr: dhcpAddr(defaultDHCPAddr),
 	}
 }
@@ -108,7 +110,7 @@ func (c *command) Run(ctx context.Context) error {
 		fileBackend: backendFile{Path: c.filePath},
 		handlers:    c.Handlers,
 		Logger:      l,
-		Addr:        c.Addr,
+		Addr:        netaddr.IPPort(c.Addr),
 		opts: netboot{
 			NetbootEnabled: c.NetbootEnabled,
 			OTELEnabled:    false,
@@ -117,6 +119,7 @@ func (c *command) Run(ctx context.Context) error {
 			IPXEHTTP:       &ih,
 			IPXEScript:     &is,
 		},
+		DHCPEnabled: c.DHCPEnabled,
 	}
 	handlers, err := cliautomagic(ctx, cl)
 	if err != nil {
@@ -128,7 +131,9 @@ func (c *command) Run(ctx context.Context) error {
 		names = append(names, h.Name())
 	}
 	l.Info("starting dhcp server", "handlers", names)
-	return listener.ListenAndServe(ctx, handlers...)
+	err = listener.ListenAndServe(ctx, handlers...)
+	l.Info("shutting down dhcp server", "handlers", names)
+	return err
 }
 
 // Validate checks the Command struct for validation errors.
@@ -144,13 +149,15 @@ func (c *command) RegisterFlags(f *flag.FlagSet) {
 
 	f.Var(&c.Handlers, "handlers", "comma separated list of handlers to use")
 	f.Var(&c.IPXETFTP, "tftp-addr", "TFTP server address")
+	f.Var(&c.Addr, "addr", "ip:port to listen on")
 	f.Var(&c.IPXEHTTP, "http-addr", "HTTP server address")
 	f.Var(&c.IPXEScript, "ipxe-script", "IPXE script to serve")
 	f.BoolVar(&c.NetbootEnabled, "netboot-enabled", true, "Enable netboot")
+	f.BoolVar(&c.DHCPEnabled, "dhcp-enabled", true, "Enable DHCP")
 	f.BoolVar(&c.OTELEnabled, "otel-enabled", true, "Enable OpenTelemetry")
 	f.Var(&c.DHCPAddr, "dhcp-addr", "DHCP server address, used in DHCP requests")
 	f.StringVar(&c.backend, "backend", "file", "backend from which to pull DHCP data")
-	f.StringVar(&c.filePath, "file-path", "", "path to data file for the file backend")
+	f.StringVar(&c.filePath, "file-path", "dhcp.yaml", "path to data file for the file backend")
 	// f.StringVar(&c.handlers, "handlers", "reservation", "comma separated string of handlers to use for DHCP requests")
 	f.StringVar(&c.logLevel, "log-level", "info", "Log level")
 	f.StringVar(&c.IFace, "iface", "eno1", "Interface to listen on")

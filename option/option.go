@@ -63,6 +63,7 @@ func BootfileAndNextServer(ctx context.Context, pktUserClass UserClass, customUs
 	switch { // order matters here.
 	case pktUserClass == Tinkerbell, (customUserClass != "" && pktUserClass == customUserClass): // this case gets us out of an ipxe boot loop.
 		bootfile = "/no-ipxe-script-defined"
+		fmt.Println("iscript", iscript)
 		if iscript != nil {
 			bootfile = iscript.String()
 		}

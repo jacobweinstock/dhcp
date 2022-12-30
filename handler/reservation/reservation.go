@@ -38,6 +38,9 @@ type Handler struct {
 	// Netboot configuration
 	Netboot Netboot
 
+	// DHCPEnabled turns on and off serving of generic IP data.
+	DHCPEnabled bool
+
 	// OTELEnabled is used to determine if netboot options include otel naming.
 	// When true, the netboot filename will be appended with otel information.
 	// For example, the filename will be "snp.efi-00-23b1e307bb35484f535a1f772c06910e-d887dc3912240434-01".
@@ -93,8 +96,8 @@ func (h *Handler) Handle(conn net.PacketConn, peer net.Addr, pkt *dhcpv4.DHCPv4)
 		return
 	}
 
-	log := h.Log.WithValues("mac", pkt.ClientHWAddr.String())
-	log.Info("received DHCP packet", "type", pkt.MessageType().String())
+	log := h.Log.WithValues("mac", pkt.ClientHWAddr.String(), "receivedMsgType", pkt.MessageType())
+	log.Info("received DHCP packet")
 	tracer := otel.Tracer(tracerName)
 	ctx, span := tracer.Start(context.Background(),
 		fmt.Sprintf("DHCP Packet Received: %v", pkt.MessageType().String()),
@@ -102,43 +105,50 @@ func (h *Handler) Handle(conn net.PacketConn, peer net.Addr, pkt *dhcpv4.DHCPv4)
 	)
 	defer span.End()
 
-	var reply *dhcpv4.DHCPv4
 	switch mt := pkt.MessageType(); mt {
-	case dhcpv4.MessageTypeDiscover:
-		d, n, err := h.readBackend(ctx, pkt.ClientHWAddr)
-		if err != nil {
-			log.Error(err, "error from backend")
-			span.SetStatus(codes.Error, err.Error())
-
-			return
-		}
-
-		reply = h.updateMsg(ctx, pkt, d, n, dhcpv4.MessageTypeOffer)
-		log = log.WithValues("type", dhcpv4.MessageTypeOffer.String())
-	case dhcpv4.MessageTypeRequest:
-		d, n, err := h.readBackend(ctx, pkt.ClientHWAddr)
-		if err != nil {
-			log.Error(err, "error from backend")
-			span.SetStatus(codes.Error, err.Error())
-
-			return
-		}
-		reply = h.updateMsg(ctx, pkt, d, n, dhcpv4.MessageTypeAck)
-		log = log.WithValues("type", dhcpv4.MessageTypeAck.String())
-	case dhcpv4.MessageTypeRelease:
+	case dhcpv4.MessageTypeRelease, dhcpv4.MessageTypeDecline, dhcpv4.MessageTypeNak:
 		// Since the design of this DHCP server is that all IP addresses are
-		// Host reservations, when a client releases an address, the server
-		// doesn't have anything to do. This case is included for clarity of this
-		// design decision.
-		log.Info("received release, no response required")
-		span.SetStatus(codes.Ok, "received release, no response required")
+		// Host reservations, when a client releases, declines, nacks an address, the server
+		// doesn't have anything to do. The DHCP spec also indicates that for a release no response is sent in reply.
+		// This case is included for clarity of this design decision.
+		log.Info("no response required")
+		span.SetStatus(codes.Ok, fmt.Sprintf("received %v, no response required", mt.String()))
 
 		return
+	case dhcpv4.MessageTypeInform:
+		// TODO: should this do something? Look up the DHCP spec and see.
+		log.Info("no response required")
+		span.SetStatus(codes.Ok, fmt.Sprintf("received %v, no response required", mt.String()))
+
+		return
+	case dhcpv4.MessageTypeDiscover, dhcpv4.MessageTypeRequest:
+		// continue
 	default:
 		log.Info("received unknown message type")
-		span.SetStatus(codes.Error, "received unknown message type")
+		span.SetStatus(codes.Error, fmt.Sprintf("received unknown message type: %v", mt.String()))
 
 		return
+	}
+
+	d, n, err := h.readBackend(ctx, pkt.ClientHWAddr)
+	if err != nil {
+		log.Error(err, "error from backend")
+		span.SetStatus(codes.Error, err.Error())
+
+		return
+	}
+
+	fmt.Println("==================================")
+	fmt.Println("c.UserClass", string(pkt.GetOneOption(dhcpv4.OptionUserClassInformation)))
+	fmt.Println("bytes", pkt.GetOneOption(dhcpv4.OptionUserClassInformation))
+	fmt.Println("==================================")
+	var reply *dhcpv4.DHCPv4
+	if pkt.MessageType() == dhcpv4.MessageTypeRequest {
+		reply = h.updateMsg(ctx, pkt, d, n, dhcpv4.MessageTypeAck)
+		log = log.WithValues("sentMsgtype", dhcpv4.MessageTypeAck.String())
+	} else {
+		reply = h.updateMsg(ctx, pkt, d, n, dhcpv4.MessageTypeOffer)
+		log = log.WithValues("sentMsgtype", dhcpv4.MessageTypeOffer.String())
 	}
 
 	if _, err := conn.WriteTo(reply.ToBytes(), peer); err != nil {
@@ -189,8 +199,15 @@ func (h *Handler) updateMsg(ctx context.Context, pkt *dhcpv4.DHCPv4, d *data.DHC
 		dhcpv4.WithGeneric(dhcpv4.OptionServerIdentifier, h.IPAddr.IPAddr().IP),
 		dhcpv4.WithServerIP(h.IPAddr.IPAddr().IP),
 	}
-	mods = append(mods, d.ToDHCPMods()...)
+	fmt.Println("====================================")
+	fmt.Println("DHCPEnabled: ", h.DHCPEnabled)
+	fmt.Println("====================================")
+	if h.DHCPEnabled {
+		mods = append(mods, d.ToDHCPMods()...)
+	}
 
+	// if n.AllowNetboot is false, we might want to sent bootfile to "/not-allowed"?
+	// trade off of not doing this is the machine will have to wait for the DHCP timeout to move to the next boot device.
 	if h.Netboot.Enabled && n.AllowNetboot {
 		if err := option.IsNetbootClient(pkt); err == nil {
 			nb := option.Conf{
@@ -201,7 +218,7 @@ func (h *Handler) updateMsg(ctx context.Context, pkt *dhcpv4.DHCPv4, d *data.DHC
 				IPXEBinServerHTTP: h.Netboot.IPXEBinServerHTTP,
 				OTELEnabled:       h.OTELEnabled,
 			}.SetNetworkBootOpts(ctx, pkt, n)
-			mods = append(mods, nb)
+			mods = append(mods, nb...)
 		}
 	}
 	reply, err := dhcpv4.NewReplyFromRequest(pkt, mods...)

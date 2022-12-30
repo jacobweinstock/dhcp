@@ -200,17 +200,17 @@ func (h *Handler) updateMsg(ctx context.Context, pkt *dhcpv4.DHCPv4, n *data.Net
 		dhcpv4.WithMessageType(msgType),
 		dhcpv4.WithGeneric(dhcpv4.OptionServerIdentifier, h.IPAddr.IPAddr().IP),
 		dhcpv4.WithServerIP(h.Netboot.IPXEBinServerTFTP.UDPAddr().IP),
-		option.Conf{
-			Log:               h.Log,
-			IPXEScriptURL:     h.Netboot.IPXEScriptURL,
-			UserClass:         h.Netboot.UserClass,
-			IPXEBinServerTFTP: h.Netboot.IPXEBinServerTFTP,
-			IPXEBinServerHTTP: h.Netboot.IPXEBinServerHTTP,
-			OTELEnabled:       h.OTELEnabled,
-		}.SetNetworkBootOpts(ctx, pkt, n),
 		setOpt97(pkt.GetOneOption(dhcpv4.OptionClientMachineIdentifier)),
 		// func(d *dhcpv4.DHCPv4) { d.ServerHostName = h.IPAddr.String() },
 	}
+	mods = append(mods, option.Conf{
+		Log:               h.Log,
+		IPXEScriptURL:     h.Netboot.IPXEScriptURL,
+		UserClass:         h.Netboot.UserClass,
+		IPXEBinServerTFTP: h.Netboot.IPXEBinServerTFTP,
+		IPXEBinServerHTTP: h.Netboot.IPXEBinServerHTTP,
+		OTELEnabled:       h.OTELEnabled,
+	}.SetNetworkBootOpts(ctx, pkt, n)...)
 
 	reply, err := dhcpv4.NewReplyFromRequest(pkt, mods...)
 	if err != nil {
