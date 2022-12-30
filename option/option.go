@@ -59,13 +59,16 @@ func BootfileAndNextServer(ctx context.Context, pktUserClass UserClass, customUs
 		bin = fmt.Sprintf("%s-%v", bin, tp)
 	}
 
-	// If a machine is in an ipxe boot loop, it is likely to be that we aren't matching on IPXE or Tinkerbell user class (option 77).
+	// If a machine is in an iPXE boot loop, it is likely to be that we aren't matching on iPXE or Tinkerbell user class (option 77).
 	switch { // order matters here.
 	case pktUserClass == Tinkerbell, (customUserClass != "" && pktUserClass == customUserClass): // this case gets us out of an ipxe boot loop.
 		bootfile = "/no-ipxe-script-defined"
-		fmt.Println("iscript", iscript)
 		if iscript != nil {
 			bootfile = iscript.String()
+		}
+		// For proxyDHCP, on the same server as the DHCP server, nextServer needs to be non-nil and not 0.0.0.0. a non-nil iscript value. Any non nil nor 0.0.0.0 IP will do.
+		if nextServer == nil || nextServer.IsUnspecified() {
+			nextServer = net.ParseIP("127.0.0.1")
 		}
 	case opt60 == HTTPClient: // Check the client type from option 60.
 		bootfile = fmt.Sprintf("%s/%s", ipxe, bin)

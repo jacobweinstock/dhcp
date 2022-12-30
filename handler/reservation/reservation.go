@@ -138,10 +138,6 @@ func (h *Handler) Handle(conn net.PacketConn, peer net.Addr, pkt *dhcpv4.DHCPv4)
 		return
 	}
 
-	fmt.Println("==================================")
-	fmt.Println("c.UserClass", string(pkt.GetOneOption(dhcpv4.OptionUserClassInformation)))
-	fmt.Println("bytes", pkt.GetOneOption(dhcpv4.OptionUserClassInformation))
-	fmt.Println("==================================")
 	var reply *dhcpv4.DHCPv4
 	if pkt.MessageType() == dhcpv4.MessageTypeRequest {
 		reply = h.updateMsg(ctx, pkt, d, n, dhcpv4.MessageTypeAck)
@@ -197,11 +193,8 @@ func (h *Handler) updateMsg(ctx context.Context, pkt *dhcpv4.DHCPv4, d *data.DHC
 	mods := []dhcpv4.Modifier{
 		dhcpv4.WithMessageType(msgType),
 		dhcpv4.WithGeneric(dhcpv4.OptionServerIdentifier, h.IPAddr.IPAddr().IP),
-		dhcpv4.WithServerIP(h.IPAddr.IPAddr().IP),
+		// option.SetOpt60(pkt.ClassIdentifier()), // this is needed if running a proxyDHCP server on port 4011 on the same IP as the DHCP server.
 	}
-	fmt.Println("====================================")
-	fmt.Println("DHCPEnabled: ", h.DHCPEnabled)
-	fmt.Println("====================================")
 	if h.DHCPEnabled {
 		mods = append(mods, d.ToDHCPMods()...)
 	}

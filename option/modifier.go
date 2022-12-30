@@ -30,9 +30,10 @@ type Conf struct {
 func (c Conf) SetNetworkBootOpts(ctx context.Context, pkt *dhcpv4.DHCPv4, n *data.Netboot) []dhcpv4.Modifier {
 	mods := []dhcpv4.Modifier{
 		SetOpt60(pkt.ClassIdentifier()),
+		setOpt97(pkt.GetOneOption(dhcpv4.OptionClientMachineIdentifier)),
 		c.setOpt43(ctx, pkt.ClientHWAddr, n.VLAN),
 		c.setBootfileAndServerIP(ctx, pkt, n),
-		dhcpv4.WithUserClass("Tinkerbell", true),
+		//dhcpv4.WithUserClass("Tinkerbell", true),
 	}
 
 	return mods
@@ -42,7 +43,7 @@ func (c Conf) setOpt43(ctx context.Context, mac net.HardwareAddr, vlan string) d
 	return func(d *dhcpv4.DHCPv4) {
 		pxe := dhcpv4.Options{ // FYI, these are suboptions of option43. ref: https://datatracker.ietf.org/doc/html/rfc2132#section-8.4
 			// PXE Boot Server Discovery Control - bypass, just boot from filename.
-			6:  []byte{8},
+			//6:  []byte{8},
 			69: TraceparentFromContext(ctx),
 		}
 		if vlan != "" {
@@ -66,15 +67,16 @@ func (c Conf) setBootfileAndServerIP(ctx context.Context, m *dhcpv4.DHCPv4, n *d
 			return
 		}
 		uClass := UserClass(string(m.GetOneOption(dhcpv4.OptionUserClassInformation)))
-		fmt.Println("=====================================")
-		fmt.Println("uClass", uClass)
-		fmt.Println("c.UserClass", string(m.GetOneOption(dhcpv4.OptionUserClassInformation)))
-		fmt.Println("bytes", m.GetOneOption(dhcpv4.OptionUserClassInformation))
-		fmt.Println("=====================================")
 		ipxeScript := c.IPXEScriptURL
 		if n.IPXEScriptURL != nil {
 			ipxeScript = n.IPXEScriptURL
 		}
 		d.BootFileName, d.ServerIPAddr = BootfileAndNextServer(ctx, uClass, c.UserClass, GetClientType(m.ClassIdentifier()), bin, c.IPXEBinServerTFTP, c.IPXEBinServerHTTP, ipxeScript, c.OTELEnabled)
+	}
+}
+
+func setOpt97(guid []byte) dhcpv4.Modifier {
+	return func(d *dhcpv4.DHCPv4) {
+		d.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionClientMachineIdentifier, guid))
 	}
 }

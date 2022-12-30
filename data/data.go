@@ -54,9 +54,9 @@ func (d *DHCP) ToDHCPMods() []dhcpv4.Modifier {
 	if len(d.NTPServers) > 0 {
 		mods = append(mods, dhcpv4.WithOption(dhcpv4.OptNTPServers(d.NTPServers...)))
 	}
-	if !d.BroadcastAddress.IsZero() {
-		mods = append(mods, dhcpv4.WithGeneric(dhcpv4.OptionBroadcastAddress, d.BroadcastAddress.IPAddr().IP))
-	}
+	//if !d.BroadcastAddress.IsZero() {
+	//	mods = append(mods, dhcpv4.WithGeneric(dhcpv4.OptionBroadcastAddress, d.BroadcastAddress.IPAddr().IP))
+	//}
 	if d.DomainName != "" {
 		mods = append(mods, dhcpv4.WithGeneric(dhcpv4.OptionDomainName, []byte(d.DomainName)))
 	}

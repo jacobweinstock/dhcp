@@ -125,7 +125,10 @@ func (c *command) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	listener := &dhcp.Listener{Addr: netaddr.IPPortFrom(netaddr.IPv4(0, 0, 0, 0), 67), IFName: c.IFace}
+	if cl.Addr.IsZero() {
+		cl.Addr = netaddr.IPPortFrom(netaddr.IPv4(0, 0, 0, 0), 67)
+	}
+	listener := &dhcp.Listener{Addr: cl.Addr, IFName: c.IFace}
 	names := []string{}
 	for _, h := range handlers {
 		names = append(names, h.Name())
