@@ -59,6 +59,7 @@ func (m *mockBackend) Read(context.Context, net.HardwareAddr) (*data.DHCP, *data
 		AllowNetboot:  m.allowNetboot,
 		IPXEScriptURL: m.ipxeScript,
 	}
+
 	return d, n, m.err
 }
 
@@ -76,8 +77,9 @@ func TestHandle(t *testing.T) {
 	}{
 		"success discover message type": {
 			server: Handler{
-				Backend: &mockBackend{},
-				IPAddr:  netaddr.IPv4(127, 0, 0, 1),
+				Backend:     &mockBackend{},
+				IPAddr:      netaddr.IPv4(127, 0, 0, 1),
+				DHCPEnabled: true,
 			},
 			req: &dhcpv4.DHCPv4{
 				OpCode:       dhcpv4.OpcodeBootRequest,
@@ -91,7 +93,7 @@ func TestHandle(t *testing.T) {
 				ClientHWAddr:  []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
 				ClientIPAddr:  []byte{0, 0, 0, 0},
 				YourIPAddr:    []byte{192, 168, 1, 100},
-				ServerIPAddr:  []byte{127, 0, 0, 1},
+				ServerIPAddr:  []byte{0, 0, 0, 0},
 				GatewayIPAddr: []byte{0, 0, 0, 0},
 				Options: dhcpv4.OptionsFromList(
 					dhcpv4.OptMessageType(dhcpv4.MessageTypeOffer),
@@ -110,8 +112,9 @@ func TestHandle(t *testing.T) {
 		},
 		"failure discover message type": {
 			server: Handler{
-				Backend: &mockBackend{err: errBadBackend},
-				IPAddr:  netaddr.IPv4(127, 0, 0, 1),
+				Backend:     &mockBackend{err: errBadBackend},
+				IPAddr:      netaddr.IPv4(127, 0, 0, 1),
+				DHCPEnabled: true,
 			},
 			req: &dhcpv4.DHCPv4{
 				OpCode:       dhcpv4.OpcodeBootRequest,
@@ -124,15 +127,15 @@ func TestHandle(t *testing.T) {
 		},
 		"success request message type": {
 			server: Handler{
-				Backend: &mockBackend{},
-				IPAddr:  netaddr.IPv4(127, 0, 0, 1),
+				Backend:     &mockBackend{},
+				IPAddr:      netaddr.IPv4(127, 0, 0, 1),
+				DHCPEnabled: true,
 			},
 			req: &dhcpv4.DHCPv4{
 				OpCode:        dhcpv4.OpcodeBootRequest,
 				ClientHWAddr:  []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
 				ClientIPAddr:  []byte{0, 0, 0, 0},
 				YourIPAddr:    []byte{192, 168, 1, 100},
-				ServerIPAddr:  []byte{127, 0, 0, 1},
 				GatewayIPAddr: []byte{0, 0, 0, 0},
 				Options: dhcpv4.OptionsFromList(
 					dhcpv4.OptMessageType(dhcpv4.MessageTypeRequest),
@@ -153,7 +156,7 @@ func TestHandle(t *testing.T) {
 				ClientHWAddr:  []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
 				ClientIPAddr:  []byte{0, 0, 0, 0},
 				YourIPAddr:    []byte{192, 168, 1, 100},
-				ServerIPAddr:  []byte{127, 0, 0, 1},
+				ServerIPAddr:  []byte{0, 0, 0, 0},
 				GatewayIPAddr: []byte{0, 0, 0, 0},
 				Options: dhcpv4.OptionsFromList(
 					dhcpv4.OptMessageType(dhcpv4.MessageTypeAck),
@@ -172,8 +175,9 @@ func TestHandle(t *testing.T) {
 		},
 		"failure request message type": {
 			server: Handler{
-				Backend: &mockBackend{err: errBadBackend},
-				IPAddr:  netaddr.IPv4(127, 0, 0, 1),
+				Backend:     &mockBackend{err: errBadBackend},
+				IPAddr:      netaddr.IPv4(127, 0, 0, 1),
+				DHCPEnabled: true,
 			},
 			req: &dhcpv4.DHCPv4{
 				OpCode:       dhcpv4.OpcodeBootRequest,
@@ -186,8 +190,9 @@ func TestHandle(t *testing.T) {
 		},
 		"request release type": {
 			server: Handler{
-				Backend: &mockBackend{err: errBadBackend},
-				IPAddr:  netaddr.IPv4(127, 0, 0, 1),
+				Backend:     &mockBackend{err: errBadBackend},
+				IPAddr:      netaddr.IPv4(127, 0, 0, 1),
+				DHCPEnabled: true,
 			},
 			req: &dhcpv4.DHCPv4{
 				OpCode:       dhcpv4.OpcodeBootRequest,
@@ -200,8 +205,9 @@ func TestHandle(t *testing.T) {
 		},
 		"unknown message type": {
 			server: Handler{
-				Backend: &mockBackend{err: errBadBackend},
-				IPAddr:  netaddr.IPv4(127, 0, 0, 1),
+				Backend:     &mockBackend{err: errBadBackend},
+				IPAddr:      netaddr.IPv4(127, 0, 0, 1),
+				DHCPEnabled: true,
 			},
 			req: &dhcpv4.DHCPv4{
 				OpCode:       dhcpv4.OpcodeBootRequest,
@@ -214,7 +220,8 @@ func TestHandle(t *testing.T) {
 		},
 		"fail WriteTo": {
 			server: Handler{
-				Backend: &mockBackend{},
+				Backend:     &mockBackend{},
+				DHCPEnabled: true,
 			},
 			req: &dhcpv4.DHCPv4{
 				OpCode:       dhcpv4.OpcodeBootRequest,
@@ -256,7 +263,7 @@ func TestHandle(t *testing.T) {
 				t.Fatalf("client() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			if diff := cmp.Diff(tt.want, msg, cmpopts.IgnoreUnexported(dhcpv4.DHCPv4{})); diff != "" {
+			if diff := cmp.Diff(msg, tt.want, cmpopts.IgnoreUnexported(dhcpv4.DHCPv4{})); diff != "" {
 				t.Fatal("diff", diff)
 			}
 		})
@@ -312,6 +319,7 @@ func TestUpdateMsg(t *testing.T) {
 				ClientHWAddr: []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
 				YourIPAddr:   []byte{192, 168, 1, 100},
 				ClientIPAddr: []byte{0, 0, 0, 0},
+				ServerIPAddr: []byte{127, 0, 0, 1},
 				BootFileName: "http://localhost:8181/auto.ipxe",
 				Options: dhcpv4.OptionsFromList(
 					dhcpv4.OptMessageType(dhcpv4.MessageTypeDiscover),
@@ -330,8 +338,9 @@ func TestUpdateMsg(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			s := &Handler{
-				Log:    stdr.New(log.New(os.Stdout, "", log.Lshortfile)),
-				IPAddr: netaddr.IPv4(127, 0, 0, 1),
+				Log:         stdr.New(log.New(os.Stdout, "", log.Lshortfile)),
+				IPAddr:      netaddr.IPv4(127, 0, 0, 1),
+				DHCPEnabled: true,
 				Netboot: Netboot{
 					Enabled: true,
 				},

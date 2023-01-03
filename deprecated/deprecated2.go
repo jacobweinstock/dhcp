@@ -1,3 +1,4 @@
+// Package deprecated contains deprecated code that is no longer used, but is kept around for reference.
 package deprecated
 
 // machine describes a device that is requesting a network boot.

@@ -1,3 +1,4 @@
+// Package reservation implements a DHCP server that uses a backend to provide DHCP data.
 package reservation
 
 import (
@@ -174,7 +175,7 @@ func (h *Handler) readBackend(ctx context.Context, mac net.HardwareAddr) (*data.
 
 	d, n, err := h.Backend.Read(ctx, mac)
 	if err != nil {
-		//h.Log.Info("error getting DHCP data from backend", "mac", mac, "error", err)
+		// h.Log.Info("error getting DHCP data from backend", "mac", mac, "error", err)
 		span.SetStatus(codes.Error, err.Error())
 
 		return nil, nil, err

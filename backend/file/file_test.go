@@ -37,7 +37,7 @@ func TestNewWatcher(t *testing.T) {
 			var name string
 			if !tt.wantErr {
 				var err error
-				name, err = createFile(tt.data)
+				name, err = createFile([]byte("hello theres"))
 				if err != nil {
 					t.Fatal(err)
 				}

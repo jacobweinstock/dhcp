@@ -1,3 +1,4 @@
+// Package main provides a simple example of how to use multiple handlers.
 package main
 
 import (

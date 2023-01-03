@@ -143,13 +143,9 @@ func TestListenerAndServe(t *testing.T) {
 			defer done()
 
 			err := s.ListenAndServe(ctx, tt.h)
-			switch err.(type) {
-			case *net.OpError:
-			default:
-				if err != tt.err && err.Error() != "failed to create udp connection: cannot bind to port 67: permission denied" && !errors.Is(err, ErrNoConn) {
-					t.Log(err)
-					t.Fatalf("got: %T, wanted: %T or ErrNoConn", err, &net.OpError{})
-				}
+			if err != tt.err && err.Error() != "failed to create udp connection: cannot bind to port 67: permission denied" && !errors.Is(err, ErrNoConn) { //nolint:errorlint // nil pointer dereference without this.
+				t.Log(err)
+				t.Fatalf("got: %T, wanted: %T or ErrNoConn", err, &net.OpError{})
 			}
 		})
 	}

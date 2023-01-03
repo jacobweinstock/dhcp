@@ -1,4 +1,3 @@
-// Package otel handles translating DHCP headers and options to otel key/value attributes.
 package option
 
 import (

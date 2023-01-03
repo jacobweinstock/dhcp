@@ -149,7 +149,6 @@ func (c *command) Validate() error {
 
 // RegisterFlags registers a flag set for the ipxe command.
 func (c *command) RegisterFlags(f *flag.FlagSet) {
-
 	f.Var(&c.Handlers, "handlers", "comma separated list of handlers to use")
 	f.Var(&c.IPXETFTP, "tftp-addr", "TFTP server address")
 	f.Var(&c.Addr, "addr", "ip:port to listen on")
@@ -164,8 +163,7 @@ func (c *command) RegisterFlags(f *flag.FlagSet) {
 	// f.StringVar(&c.handlers, "handlers", "reservation", "comma separated string of handlers to use for DHCP requests")
 	f.StringVar(&c.logLevel, "log-level", "info", "Log level")
 	f.StringVar(&c.IFace, "iface", "eno1", "Interface to listen on")
-	//f.Func("handlers", "comma separated string of handlers to use for DHCP requests", c.stringSliceVar)
-
+	// f.Func("handlers", "comma separated string of handlers to use for DHCP requests", c.stringSliceVar)
 }
 
 // defaultLogger is a zerolog logr implementation.

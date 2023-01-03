@@ -37,7 +37,7 @@ endif
 # http://github.com/tinkerbell/lint-install
 
 .PHONY: lint
-lint: _lint
+lint: _lint ## Run all linters
 
 LINT_ARCH := $(shell uname -m)
 LINT_OS := $(shell uname)

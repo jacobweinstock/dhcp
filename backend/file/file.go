@@ -174,7 +174,6 @@ func (w *Watcher) Start(ctx context.Context) {
 			}
 			w.Log.Info("error watching file", "err", err)
 		}
-
 	}
 }
 

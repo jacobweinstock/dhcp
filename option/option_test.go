@@ -39,7 +39,7 @@ func TestBootfileAndNextServer(t *testing.T) {
 				iscript: &url.URL{Scheme: "http", Host: "localhost:8080", Path: "/auto.ipxe"},
 			},
 			wantBootFile: "http://localhost:8080/auto.ipxe",
-			wantNextSrv:  nil,
+			wantNextSrv:  net.IPv4(127, 0, 0, 1),
 		},
 		"success httpClient": {
 			args: args{

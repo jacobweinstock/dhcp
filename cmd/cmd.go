@@ -1,3 +1,4 @@
+// Package main provides a cmd line utility for the library.
 package main
 
 import (
@@ -73,11 +74,15 @@ func cliautomagic(ctx context.Context, c cli) ([]dhcp.Handler, error) {
 		case "noop":
 			h = append(h, noopHandler.Handler{Log: c.Logger})
 		case "reservation":
+			be, ok := backend.(reservation.BackendReader)
+			if !ok {
+				return nil, fmt.Errorf("reservation handler requires a reservation backend")
+			}
 			r := &reservation.Handler{
 				Log:         c.Logger.WithValues("handler", "reservation"),
 				IPAddr:      c.opts.DHCPAddr,
 				OTELEnabled: c.opts.OTELEnabled,
-				Backend:     backend.(reservation.BackendReader),
+				Backend:     be,
 				Netboot: reservation.Netboot{
 					IPXEBinServerTFTP: c.opts.IPXETFTP,
 					IPXEBinServerHTTP: c.opts.IPXEHTTP,
@@ -88,11 +93,15 @@ func cliautomagic(ctx context.Context, c cli) ([]dhcp.Handler, error) {
 			}
 			h = append(h, r)
 		case "proxy":
+			be, ok := backend.(proxy.BackendReader)
+			if !ok {
+				return nil, fmt.Errorf("proxy handler requires a proxy backend")
+			}
 			p := &proxy.Handler{
 				Log:         c.Logger.WithValues("handler", "proxy"),
 				IPAddr:      c.opts.DHCPAddr,
 				OTELEnabled: c.opts.OTELEnabled,
-				Backend:     backend.(proxy.BackendReader),
+				Backend:     be,
 				Netboot: proxy.Netboot{
 					IPXEBinServerTFTP: c.opts.IPXETFTP,
 					IPXEBinServerHTTP: c.opts.IPXEHTTP,

@@ -1,4 +1,4 @@
-// Package option seeks to provide some common functionality for the dhcp package.
+// Package option provide functionality setting DHCP options.
 package option
 
 import (
@@ -68,7 +68,11 @@ func BootfileAndNextServer(ctx context.Context, pktUserClass UserClass, customUs
 		}
 		// For proxyDHCP, on the same server as the DHCP server, nextServer needs to be non-nil and not 0.0.0.0. a non-nil iscript value. Any non nil nor 0.0.0.0 IP will do.
 		if nextServer == nil || nextServer.IsUnspecified() {
-			nextServer = net.ParseIP("127.0.0.1")
+			ihost := strings.Split(iscript.Host, ":")[0]
+			nextServer = net.ParseIP(ihost)
+			if nextServer == nil {
+				nextServer = net.ParseIP("127.0.0.1")
+			}
 		}
 	case opt60 == HTTPClient: // Check the client type from option 60.
 		bootfile = fmt.Sprintf("%s/%s", ipxe, bin)
@@ -143,7 +147,7 @@ func IsNetbootClient(pkt *dhcpv4.DHCPv4) error {
 	return nil
 }
 
-// setOpt60AndSNAME based on option 60.
+// SetOpt60AndSNAME based on option 60.
 func SetOpt60AndSNAME(opt60FromClient string, tftp net.IP, http net.IP) (dhcpv4.Modifier, ClientType) {
 	opt54 := tftp
 	opt60 := PXEClient
@@ -158,7 +162,7 @@ func SetOpt60AndSNAME(opt60FromClient string, tftp net.IP, http net.IP) (dhcpv4.
 	}, opt60
 }
 
-// SetOption60 mirrors back option 60 from a client request.
+// SetOpt60 mirrors back option 60 from a client request.
 func SetOpt60(opt60FromClient string) dhcpv4.Modifier {
 	opt60 := PXEClient
 	if strings.HasPrefix(opt60FromClient, string(HTTPClient)) {
@@ -170,6 +174,7 @@ func SetOpt60(opt60FromClient string) dhcpv4.Modifier {
 	}
 }
 
+// GetClientType returns the client type based on option 60.
 func GetClientType(opt60 string) ClientType {
 	if strings.HasPrefix(opt60, string(HTTPClient)) {
 		return HTTPClient
