@@ -13,7 +13,6 @@ import (
 	"github.com/tinkerbell/dhcp"
 	"github.com/tinkerbell/dhcp/backend/kube"
 	"github.com/tinkerbell/dhcp/handler/reservation"
-	"inet.af/netaddr"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 )
@@ -36,9 +35,9 @@ func main() {
 
 	handler := &reservation.Handler{
 		Log:    l,
-		IPAddr: netaddr.IPv4(192, 168, 2, 221),
+		IPAddr: netip.AddrFrom4([4]byte{192, 168, 2, 221),
 		Netboot: reservation.Netboot{
-			IPXEBinServerTFTP: netaddr.IPPortFrom(netaddr.IPv4(192, 168, 1, 34), 69),
+			IPXEBinServerTFTP: netip.AddrPortFrom(netip.AddrFrom4([4]byte{192, 168, 1, 34), 69),
 			IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.1.34:8080"},
 			IPXEScriptURL:     &url.URL{Scheme: "https", Host: "boot.netboot.xyz"},
 			Enabled:           true,

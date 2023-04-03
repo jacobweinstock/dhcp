@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"reflect"
 	"sync"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv4/server4"
 	"github.com/tinkerbell/dhcp/handler/noop"
-	"inet.af/netaddr"
 )
 
 // ErrNoConn is an error im still not sure i want to use.
@@ -26,7 +26,7 @@ func (e *noConnError) Error() string {
 
 // Listener is a DHCPv4 server.
 type Listener struct {
-	Addr     netaddr.IPPort
+	Addr     netip.AddrPort
 	srvMu    sync.Mutex
 	srv      *server4.Server
 	handlers []Handler
@@ -81,15 +81,15 @@ func (l *Listener) ListenAndServe(h ...Handler) error {
 	}
 	l.handlers = h
 	defaults := &Listener{
-		Addr: netaddr.IPPortFrom(netaddr.IPv4(0, 0, 0, 0), 67),
+		Addr: netip.AddrPortFrom(netip.AddrFrom4([4]byte{0, 0, 0, 0}), 67),
 	}
 	if err := mergo.Merge(l, defaults, mergo.WithTransformers(l)); err != nil {
 		return fmt.Errorf("failed to merge defaults: %w", err)
 	}
 
 	addr := &net.UDPAddr{
-		IP:   l.Addr.UDPAddr().IP,
-		Port: l.Addr.UDPAddr().Port,
+		IP:   l.Addr.Addr().AsSlice(),
+		Port: int(l.Addr.Port()),
 	}
 	conn, err := server4.NewIPv4UDPConn("", addr)
 	if err != nil {
@@ -114,12 +114,12 @@ func (l *Listener) Shutdown() error {
 func (l *Listener) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
 	//nolint:revive // the switch is place holder to show when multiple transformers.
 	switch typ { //nolint:gocritic // the switch is place holder to show when multiple transformers.
-	case reflect.TypeOf(netaddr.IPPort{}):
+	case reflect.TypeOf(netip.AddrPort{}):
 		return func(dst, src reflect.Value) error {
 			if dst.CanSet() {
-				isZero := dst.MethodByName("IsZero")
-				result := isZero.Call([]reflect.Value{})
-				if result[0].Bool() {
+				m := dst.MethodByName("IsValid")
+				addr := m.Call([]reflect.Value{})
+				if addr[0].Bool() {
 					dst.Set(src)
 				}
 			}

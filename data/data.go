@@ -1,4 +1,4 @@
-// Package data is an interface between DHCP backend implementations and the DHCP server.
+// Package data is the data shared between DHCP backend implementations and DHCP handlers.
 package data
 
 import (
@@ -6,30 +6,74 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/insomniacslk/dhcp/dhcpv4"
 	"go.opentelemetry.io/otel/attribute"
-	"inet.af/netaddr"
 )
 
 // DHCP holds the DHCP headers and options to be set in a DHCP handler response.
 // This is the API between a DHCP handler and a backend.
 type DHCP struct {
 	MACAddress       net.HardwareAddr // chaddr DHCP header.
-	IPAddress        netaddr.IP       // yiaddr DHCP header.
+	IPAddress        net.IP           // yiaddr DHCP header.
 	SubnetMask       net.IPMask       // DHCP option 1.
-	DefaultGateway   netaddr.IP       // DHCP option 3.
+	DefaultGateway   net.IP           // DHCP option 3.
 	NameServers      []net.IP         // DHCP option 6.
 	Hostname         string           // DHCP option 12.
 	DomainName       string           // DHCP option 15.
-	BroadcastAddress netaddr.IP       // DHCP option 28.
+	BroadcastAddress net.IP           // DHCP option 28.
 	NTPServers       []net.IP         // DHCP option 42.
 	LeaseTime        uint32           // DHCP option 51.
 	DomainSearch     []string         // DHCP option 119.
+	VLANID           string           // DHCP option 43.116
 }
 
 // Netboot holds info used in netbooting a client.
 type Netboot struct {
 	AllowNetboot  bool     // If true, the client will be provided netboot options in the DHCP offer/ack.
 	IPXEScriptURL *url.URL // Overrides a default value that is passed into DHCP on startup.
+	VLAN          string   // DHCP option 43.116. Used to create VLAN interfaces in iPXE.
+}
+
+func isZero(z net.IP) bool {
+	return len(z) == 0 || net.IP(z).IsUnspecified()
+}
+
+// ToDHCPMods translates a DHCP struct to a slice of DHCP packet modifiers.
+// Only non zero values are added to the modifiers slice.
+func (d *DHCP) ToDHCPMods() []dhcpv4.Modifier {
+	mods := []dhcpv4.Modifier{
+		dhcpv4.WithHwAddr(d.MACAddress),
+		dhcpv4.WithLeaseTime(d.LeaseTime),
+	}
+	if !isZero(d.IPAddress) {
+		mods = append(mods, dhcpv4.WithYourIP(d.IPAddress))
+	}
+	if len(d.NameServers) > 0 {
+		mods = append(mods, dhcpv4.WithDNS(d.NameServers...))
+	}
+	if len(d.DomainSearch) > 0 {
+		mods = append(mods, dhcpv4.WithDomainSearchList(d.DomainSearch...))
+	}
+	if len(d.NTPServers) > 0 {
+		mods = append(mods, dhcpv4.WithOption(dhcpv4.OptNTPServers(d.NTPServers...)))
+	}
+	if !isZero(d.BroadcastAddress) {
+		mods = append(mods, dhcpv4.WithGeneric(dhcpv4.OptionBroadcastAddress, d.BroadcastAddress))
+	}
+	if d.DomainName != "" {
+		mods = append(mods, dhcpv4.WithGeneric(dhcpv4.OptionDomainName, []byte(d.DomainName)))
+	}
+	if d.Hostname != "" {
+		mods = append(mods, dhcpv4.WithGeneric(dhcpv4.OptionHostName, []byte(d.Hostname)))
+	}
+	if len(d.SubnetMask) > 0 {
+		mods = append(mods, dhcpv4.WithNetmask(d.SubnetMask))
+	}
+	if !isZero(d.DefaultGateway) {
+		mods = append(mods, dhcpv4.WithRouter(d.DefaultGateway))
+	}
+
+	return mods
 }
 
 // EncodeToAttributes returns a slice of opentelemetry attributes that can be used to set span.SetAttributes.
@@ -45,7 +89,7 @@ func (d *DHCP) EncodeToAttributes() []attribute.KeyValue {
 	}
 
 	var ip string
-	if !d.IPAddress.IsZero() {
+	if !isZero(d.IPAddress) {
 		ip = d.IPAddress.String()
 	}
 
@@ -55,12 +99,12 @@ func (d *DHCP) EncodeToAttributes() []attribute.KeyValue {
 	}
 
 	var dfg string
-	if !d.DefaultGateway.IsZero() {
+	if !isZero(d.DefaultGateway) {
 		dfg = d.DefaultGateway.String()
 	}
 
 	var ba string
-	if !d.BroadcastAddress.IsZero() {
+	if !isZero(d.BroadcastAddress) {
 		ba = d.BroadcastAddress.String()
 	}
 
