@@ -1,5 +1,5 @@
 ---
-08:00:27:29:4E:67:
+de:ad:c0:de:ca:fe: #08:00:27:29:4E:67:
   ipAddress: '192.168.2.153'
   subnetMask: '255.255.255.0'
   defaultGateway: '192.168.2.1'
@@ -18,6 +18,10 @@
   netboot:
     allowPxe: true
     ipxeScriptUrl: 'https://boot.netboot.xyz'
+  optionsByTag:
+    54: 192.168.15.1
+    3: 192.168.3.1
+    156: 2
 52:54:00:aa:88:2a:
   ipAddress: '192.168.2.15'
   subnetMask: '255.255.255.0'

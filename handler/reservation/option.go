@@ -12,6 +12,7 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/iana"
 	"github.com/tinkerbell/dhcp/data"
+	"github.com/tinkerbell/dhcp/handler"
 	"github.com/tinkerbell/dhcp/otel"
 )
 
@@ -75,7 +76,7 @@ func (u UserClass) String() string {
 // setDHCPOpts takes a client dhcp packet and data (typically from a backend) and creates a slice of DHCP packet modifiers.
 // m is the DHCP request from a client. d is the data to use to create the DHCP packet modifiers.
 // This is most likely the place where we would have any business logic for determining DHCP option setting.
-func (h *Handler) setDHCPOpts(_ context.Context, _ *dhcpv4.DHCPv4, d *data.DHCP) []dhcpv4.Modifier {
+func (h *Handler) setDHCPOpts(_ context.Context, d *data.DHCP) []dhcpv4.Modifier {
 	mods := []dhcpv4.Modifier{
 		dhcpv4.WithLeaseTime(d.LeaseTime),
 		dhcpv4.WithYourIP(d.IPAddress.AsSlice()),
@@ -84,6 +85,7 @@ func (h *Handler) setDHCPOpts(_ context.Context, _ *dhcpv4.DHCPv4, d *data.DHCP)
 		mods = append(mods, dhcpv4.WithDNS(d.NameServers...))
 	}
 	if len(d.DomainSearch) > 0 {
+		fmt.Println("domain search", d.DomainSearch)
 		mods = append(mods, dhcpv4.WithDomainSearchList(d.DomainSearch...))
 	}
 	if len(d.NTPServers) > 0 {
@@ -103,6 +105,14 @@ func (h *Handler) setDHCPOpts(_ context.Context, _ *dhcpv4.DHCPv4, d *data.DHCP)
 	}
 	if d.DefaultGateway.Compare(netip.Addr{}) != 0 {
 		mods = append(mods, dhcpv4.WithRouter(d.DefaultGateway.AsSlice()))
+	}
+
+	for code, val := range d.OptionsByTag {
+		if o, err := handler.Convert(code, string(val)); err == nil {
+			mods = append(mods, dhcpv4.WithOption(o))
+		} else {
+			h.Log.Info("failed to convert option", "error", err)
+		}
 	}
 
 	return mods

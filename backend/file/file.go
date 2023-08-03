@@ -56,8 +56,13 @@ type dhcp struct {
 	LeaseTime        int              `yaml:"leaseTime"`        // DHCP option 51.
 	Arch             string           `yaml:"arch"`             // DHCP option 93.
 	DomainSearch     []string         `yaml:"domainSearch"`     // DHCP option 119.
+	OptionsByTag     Options          `yaml:"optionsByTag"`     // DHCP options by tag number.
 	Netboot          netboot          `yaml:"netboot"`
 }
+
+// Options allow defining any DHCP option by its tag number.
+// https://www.iana.org/assignments/bootp-dhcp-parameters/bootp-dhcp-parameters.xhtml
+type Options map[uint8]string
 
 // Watcher represents the backend for watching a file for changes and updating the in memory DHCP data.
 type Watcher struct {
@@ -325,6 +330,12 @@ func (w *Watcher) translate(r dhcp) (*data.DHCP, *data.Netboot, error) {
 	// facility
 	if r.Netboot.Facility != "" {
 		n.Facility = r.Netboot.Facility
+	}
+
+	// optionsByTag
+	d.OptionsByTag = make(map[uint8][]byte)
+	for k, v := range r.OptionsByTag {
+		d.OptionsByTag[k] = []byte(v)
 	}
 
 	return d, n, nil

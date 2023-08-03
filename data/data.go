@@ -26,7 +26,12 @@ type DHCP struct {
 	LeaseTime        uint32           // DHCP option 51.
 	Arch             string           // DHCP option 93.
 	DomainSearch     []string         // DHCP option 119.
+	OptionsByTag     Options          // DHCP options by tag number.
 }
+
+// Options allow defining any DHCP option by its tag number.
+// https://www.iana.org/assignments/bootp-dhcp-parameters/bootp-dhcp-parameters.xhtml
+type Options map[uint8][]byte
 
 // Netboot holds info used in netbooting a client.
 type Netboot struct {

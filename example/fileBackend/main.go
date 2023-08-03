@@ -37,17 +37,19 @@ func main() {
 
 	h := &reservation.Handler{
 		Log:    l,
-		IPAddr: netip.MustParseAddr("192.168.2.225"),
+		IPAddr: netip.MustParseAddr("192.168.2.50"),
 		Netboot: reservation.Netboot{
-			IPXEBinServerTFTP: netip.MustParseAddrPort("192.168.1.34:69"),
-			IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.1.34:8080"},
+			IPXEBinServerTFTP: netip.MustParseAddrPort("192.168.2.50:69"),
+			IPXEBinServerHTTP: &url.URL{Scheme: "http", Host: "192.168.2.50:8080"},
 			IPXEScriptURL:     &url.URL{Scheme: "https", Host: "boot.netboot.xyz"},
 			Enabled:           true,
 		},
 		OTELEnabled: true,
 		Backend:     backend,
 	}
-	listener := &dhcp.Listener{}
+	listener := &dhcp.Listener{
+		Addr: netip.MustParseAddrPort("0.0.0.0:67"),
+	}
 	l.Info("starting server", "addr", h.IPAddr)
 	l.Error(listener.ListenAndServe(ctx, h), "done")
 	l.Info("done")

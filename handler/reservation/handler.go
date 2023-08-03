@@ -131,7 +131,7 @@ func (h *Handler) updateMsg(ctx context.Context, pkt *dhcpv4.DHCPv4, d *data.DHC
 		dhcpv4.WithGeneric(dhcpv4.OptionServerIdentifier, h.IPAddr.AsSlice()),
 		dhcpv4.WithServerIP(h.IPAddr.AsSlice()),
 	}
-	mods = append(mods, h.setDHCPOpts(ctx, pkt, d)...)
+	mods = append(mods, h.setDHCPOpts(ctx, d)...)
 
 	if h.Netboot.Enabled && h.isNetbootClient(pkt) {
 		mods = append(mods, h.setNetworkBootOpts(ctx, pkt, n))

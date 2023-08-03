@@ -103,7 +103,7 @@ func TestSetDHCPOpts(t *testing.T) {
 				IPAddr:  tt.server.IPAddr,
 				Backend: tt.server.Backend,
 			}
-			mods := s.setDHCPOpts(tt.args.in0, tt.args.m, tt.args.d)
+			mods := s.setDHCPOpts(tt.args.in0, tt.args.d)
 			finalPkt, err := dhcpv4.New(mods...)
 			if err != nil {
 				t.Fatalf("setDHCPOpts() error = %v, wantErr nil", err)
